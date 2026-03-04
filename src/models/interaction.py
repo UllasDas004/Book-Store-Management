@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, Float, ForeignKey, DateTime, Text, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.db.database import Base
@@ -32,6 +32,7 @@ class Sale(Base):
     book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     total_price = Column(Float, nullable=False)
+    status = Column(String, default = "Pending")
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="sales")
