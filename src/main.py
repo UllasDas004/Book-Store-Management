@@ -5,11 +5,13 @@ from src.models.book import Book
 from src.models.user import User
 from src.models.interaction import CartItem, Favourite, Sale
 from src.models.requisition import Requisition
+from src.api.auth import router as auth_router
 
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
 app.include_router(book_router)
+app.include_router(auth_router)
 
 @app.get("/")
 def read_root():
