@@ -10,15 +10,16 @@ class BookBase(BaseModel):
     publication_year: Optional[int] = None
     price: float = Field(gt=0)
     category: str
+    description: Optional[str] = None
     cover_image_url: Optional[str] = None
-    short_reviews: Optional[str] = None
-    stock_quantity: int = Field(default=0, ge=0)
+    discount_percentage: Optional[float] = Field(default=0.0, ge=0, le=100)
 
 class BookCreate(BookBase):
-    pass
+    stock_quantity: int = Field(default=0, ge=0)
 
 class BookResponse(BookBase):
     id: int
+    stock_quantity: int = Field(default=0, ge=0)
 
     class Config:
         from_attributes = True

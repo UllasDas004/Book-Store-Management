@@ -14,7 +14,9 @@ class Book(Base):
     publication_year = Column(Integer)
     price = Column(Float, nullable=False)
     category = Column(String,index=True, nullable=False)
+    description = Column(Text)
     cover_image_url = Column(String)
+    discount_percentage = Column(Float, default=0.0)
     short_reviews = Column(Text)
     stock_quantity = Column(Integer, default=0, nullable=False)
 
@@ -22,3 +24,4 @@ class Book(Base):
     favourites = relationship("Favourite", back_populates="book")
     sales = relationship("Sale", back_populates="book")
     requisitions = relationship("Requisition", back_populates="book")
+    reviews = relationship("Review", back_populates="book", cascade="all, delete-orphan")

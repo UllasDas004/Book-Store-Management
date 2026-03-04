@@ -18,3 +18,4 @@ class User(Base):
     favourites = relationship("Favourite", back_populates="user")
     sales = relationship("Sale", back_populates="user")
     requisitions = relationship("Requisition", back_populates="user")
+    reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")

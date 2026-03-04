@@ -18,6 +18,9 @@ class CartItemResponse(CartItemBase):
     class Config:
         from_attributes = True
 
+class CartResponse(BaseModel):
+    items: list[CartItemResponse]
+    total_price: float
 
 
 class FavouriteBase(BaseModel):
@@ -73,3 +76,20 @@ class RequisitionResponse(RequisitionBase):
     class Config:
         from_attributes = True
 
+
+
+class ReviewBase(BaseModel):
+    rating: int
+    comment: Optional[str] = None
+
+class ReviewCreate(ReviewBase):
+    pass
+
+class ReviewResponse(ReviewBase):
+    id: int
+    user_id: int
+    book_id: int
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True

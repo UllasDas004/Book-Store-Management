@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+import shutil
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from typing import List, Optional
@@ -99,3 +101,29 @@ async def delete_book(
     db.delete(db_book)
     db.commit()
     return None
+
+
+@router.post("/{book_id}/cover", response_model = BookResponse)
+async def upload_book_cover(
+    book_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user)
+):
+    """Only an admin can upload a book cover"""
+    db_book = db.query(Book).filter(Book.id == book_id).first()
+    if not db_book:
+        raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
+
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "Invalid file type")
+    
+    filename = f"{book_id}_{file.filename.replace(' ','_')}"
+    file_path = f"src/static/images/{filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    db_book.cover_image_url = f"/static/images/{filename}"
+    db.commit()
+    db.refresh(db_book)
+    return db_book
