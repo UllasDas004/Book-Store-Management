@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
-import jwt
+from jose import jwt
 from typing import Optional
 from src.core.config import settings
 
