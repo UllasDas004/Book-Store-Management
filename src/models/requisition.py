@@ -7,8 +7,8 @@ class Requisition(Base):
     __tablename__ = "requisitions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"),index = True, nullable=False)
+    book_id = Column(Integer, ForeignKey("books.id"),index = True, nullable=False)
     quantity = Column(Integer, nullable=False)
     status = Column(String, default="pending", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

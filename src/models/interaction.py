@@ -7,8 +7,8 @@ class CartItem(Base):
     __tablename__ = "cart_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"),index = True, nullable=False)
+    book_id = Column(Integer, ForeignKey("books.id"),index = True, nullable=False)
     quantity = Column(Integer, nullable=False)
 
     user = relationship("User", back_populates="cart_items")
@@ -18,8 +18,8 @@ class Favourite(Base):
     __tablename__ = "favourites"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"),index = True, nullable=False)
+    book_id = Column(Integer, ForeignKey("books.id"),index = True, nullable=False)
 
     user = relationship("User", back_populates="favourites")
     book = relationship("Book", back_populates="favourites")
@@ -28,8 +28,8 @@ class Sale(Base):
     __tablename__ = "sales"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"),index = True, nullable=False)
+    book_id = Column(Integer, ForeignKey("books.id"),index = True, nullable=False)
     quantity = Column(Integer, nullable=False)
     total_price = Column(Float, nullable=False)
     status = Column(String, default = "Pending")
@@ -43,8 +43,8 @@ class Review(Base):
     __tablename__ = "reviews"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    book_id = Column(Integer, ForeignKey("books.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"),index = True, nullable=False)
+    book_id = Column(Integer, ForeignKey("books.id"),index = True, nullable=False)
     rating = Column(Integer, nullable=False)
     comment = Column(Text)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())

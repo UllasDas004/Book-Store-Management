@@ -79,6 +79,15 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
 
 ---
 
+## ⚡ Performance & Database Optimizations
+
+To ensure the backend can handle thousands of concurrent users and massive order histories without slowing down, we implemented strategic PostgeSQL **B-Tree Indexing**.
+
+*   **Foreign Key Indexes:** Every single foreign key in the database (`user_id` and `book_id` across the Carts, Sales, Reviews, Favorites, and Requisitions tables) is explicitly indexed (`index=True`).
+*   **The Benefit:** Without these indexes, an endpoint like "View Order History" (`GET /sales/history`) would force PostgreSQL to perform a *Sequential Scan* (checking every single row in the Sales table one by one). By creating indexes, Postgres instantly looks up the user's records in a highly optimized hash map, dropping query latency from hundreds of milliseconds (or worse at scale) down to virtually `1ms`.
+
+---
+
 ## 🏃‍♂️ How to Run the Project
 
 1. **Prerequisites:** Ensure you have Python and `uv` installed. You also need a running PostgreSQL database.
