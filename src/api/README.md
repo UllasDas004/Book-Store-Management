@@ -28,3 +28,6 @@ Endpoints like `POST /requisitions/auto` use FastAPI's **BackgroundTasks**. Inst
 
 ## 📦 Memory-Safe Pagination
 If an admin tries to load 100,000 old requisition orders, pulling all those SQL records into Python memory at once will crash Docker. To prevent this, data-heavy endpoints structurally incorporate strict **Server-Side Pagination** (`skip` and `limit`). By defaulting to yielding chunks of 50 items at a time, the backend RAM usage stays perfectly flat and predictable, regardless of how massive your database grows!
+
+## 🛡️ API Rate Limiting (DDoS Protection)
+The public-facing components of this API (such as the heavily-trafficked `GET /books/` catalog) are fortified with `SlowAPI`. We strictly enforce a limit of **60 requests per minute** per user IP address. This directly prevents malicious bots, scrapers, and DDoS attacks from spamming the API and intentionally crashing the database. If the limit is exceeded, FastAPI intercepts the request and safely returns a `429 Too Many Requests` error without ever executing the underlying logic.

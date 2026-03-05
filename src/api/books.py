@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 import shutil
 import os
 from sqlalchemy.orm import Session, joinedload
@@ -16,8 +16,14 @@ router = APIRouter(
     tags = ["Books"]
 )
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+limiter = Limiter(key_func=get_remote_address)
+
 @router.get("/", response_model = List[BookResponse])
+@limiter.limit("60/minute")
 async def get_all_books(
+    request: Request,
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 10,
