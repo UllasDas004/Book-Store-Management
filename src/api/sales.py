@@ -14,7 +14,7 @@ router = APIRouter(
     tags = ["Sales & Cart"]
 )
 
-@router.post("/", response_model = SaleResponse, status_code = status.HTTP_201_CREATED)
+@router.post("/", response_model = CartItemResponse, status_code = status.HTTP_201_CREATED)
 async def add_to_cart(cart_item: CartItemCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     """Add a book to the cart"""
 
