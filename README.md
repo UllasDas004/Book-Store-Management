@@ -31,7 +31,8 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
 *   **Public Browsing:** Anyone (even unauthenticated users) can view the book catalog.
     *   Supports pagination (`skip`, `limit`).
     *   Supports dynamic fuzzy searching by **Title**, **Author**, or **ISBN** (using PostgreSQL `pg_trgm` extension for typo tolerance).
-    *   Supports filtering by **Category**.
+    *   Supports filtering by **Category**, **Min Price**, and **Max Price**.
+    *   Supports sorting results via `sort_by` (`price_asc`, `price_desc`, `newest`).
 *   **Detailed Views:** Fetching a single book (`GET /books/{id}`) automatically eager-loads and displays all user **reviews**.
 *   **Admin Powers:**
     *   Add new books (`POST /books/`).

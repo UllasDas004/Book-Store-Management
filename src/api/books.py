@@ -22,7 +22,10 @@ async def get_all_books(
     skip: int = 0,
     limit: int = 10,
     search: Optional[str] = None,
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    sort_by: Optional[str] = None
 ):
     """Anyone can view the list of all books."""
     query = db.query(Book)
@@ -37,10 +40,23 @@ async def get_all_books(
                 Book.isbn.ilike(f"%{search}%")
             )
         )
-        # Order by closest match
-        query = query.order_by(func.similarity(Book.title, search).desc())
     if category:
         query = query.filter(Book.category.ilike(f"%{category}%"))
+        
+    if min_price is not None:
+        query = query.filter(Book.price >= min_price)
+    if max_price is not None:
+        query = query.filter(Book.price <= max_price)
+        
+    if sort_by == "price_asc":
+        query = query.order_by(Book.price.asc())
+    elif sort_by == "price_desc":
+        query = query.order_by(Book.price.desc())
+    elif sort_by == "newest":
+        query = query.order_by(Book.id.desc())
+    elif search:
+        # Default order by closest match if search is provided
+        query = query.order_by(func.similarity(Book.title, search).desc())
     
     books = query.offset(skip).limit(limit).all()
     return books
