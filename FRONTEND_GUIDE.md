@@ -154,20 +154,47 @@ export default function Login() {
 ### 3. Fetching the Catalog with Filters (`src/pages/Catalog.jsx`)
 How to pass query parameters for complex sorting and filtering!
 
+### 🔍 Advanced Search Bar Flexibilities
+The `GET /books/` endpoint is incredibly powerful because it uses PostgreSQL's `pg_trgm` (Trigram) extensions under the hood. It doesn't just look for exact matches; it understands *similarity*. 
+
+You can build a highly flexible Search Bar with the following UI approaches:
+
+1.  **The "Omni-Search" Bar:** 
+    *   Because the backend checks the `search` query against the **Title**, **Author**, AND **ISBN**, you do *not* need separate dropdowns for "Search by Title" vs "Search by Author". A single, clean text input is all the user needs! 
+    *   *Example:* If a user types `"Rowling"`, it will find *Harry Potter* because it matches the Author column. If they type `"978-3-16"`, it will find the exact book by ISBN.
+2.  **Typo-Tolerance (Fuzzy Searching):**
+    *   The backend calculates a similarity score `> 0.3`. This means if a user accidentally types `"Harri Potter"` instead of `"Harry Potter"`, the backend will *still find it* and return it! It also automatically ranks the results, putting the highest similarity scores at the very top.
+3.  **Live "As-You-Type" Search (Debouncing):**
+    *   Instead of waiting for the user to press an "Enter" button, you can fetch results on every keystroke! 
+    *   *Crucial Frontend Tip:* Use a **Debounce** hook (e.g., `useDebounce`) to wait 300ms after the user *stops* typing before calling the API. This prevents spamming the backend with 10 requests if they type "Harry" really fast.
+
 ```javascript
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
+
+// A simple debounce hook implementation
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 export default function Catalog() {
   const [books, setBooks] = useState([]);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  
+  // Wait 300ms after the user stops typing
+  const debouncedSearch = useDebounce(search, 300);
 
   const fetchBooks = async () => {
     try {
       const response = await api.get('/books/', {
         params: {
-          search: search || null,
+          search: debouncedSearch || null, // Uses the Delayed Search Term!
           sort_by: sortBy,
           limit: 20
         }
@@ -178,14 +205,15 @@ export default function Catalog() {
     }
   };
 
+  // Re-fetch ONLY when the debounced search or sorting changes
   useEffect(() => {
     fetchBooks();
-  }, [search, sortBy]); // refetch automatically when filters change
+  }, [debouncedSearch, sortBy]); 
 
   return (
     <div>
       <input 
-        placeholder="Search title, author..." 
+        placeholder="Try 'Harri Potter' or 'Tolkien'..." 
         value={search} 
         onChange={e => setSearch(e.target.value)} 
       />
@@ -199,12 +227,17 @@ export default function Catalog() {
         {books.map(book => (
           <div key={book.id}>
             <h3>{book.title}</h3>
+            <p className="author">By {book.author}</p>
             <p>${book.price}</p>
-            {/* Remember to prepend the backend URL for images! */}
             <img src={`http://localhost:8000${book.cover_image_url}`} alt="cover" />
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+```
+
 ### 4. Live Shopping Cart Component (`src/components/Cart.jsx`)
 This component shows how to fetch the cart, calculate totals, update quantities, and process a checkout.
 
