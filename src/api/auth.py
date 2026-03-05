@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from src.db.database import get_db
@@ -38,7 +38,11 @@ async def user_register(user: UserCreate,db: Session = Depends(get_db)):
     return new_user
 
 @router.post("/login")
-async def user_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def user_login(
+    response: Response,
+    form_data: OAuth2PasswordRequestForm = Depends(), 
+    db: Session = Depends(get_db)
+):
     # OAuth2PasswordRequestForm uses username by default
     # But we are going to expenct the user to tyoe their email into that field
 
@@ -51,6 +55,23 @@ async def user_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Sessi
         raise HTTPException(status_code = 400, detail = "Inactive user")
 
     access_token = create_access_token(data = {"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer"}
+    
+    # Set the token in an HTTP-Only cookie to prevent XSS attacks from reading it via JavaScript
+    response.set_cookie(
+        key="access_token",
+        value=f"Bearer {access_token}",
+        httponly=True,
+        samesite="lax",
+        secure=False, # Set to True in production with HTTPS
+        max_age=1800 # 30 minutes
+    )
+    
+    # We still return the JSON so the frontend knows the login succeeded
+    return {"access_token": access_token, "token_type": "bearer", "message": "Successfully logged in"}
+
+@router.post("/logout")
+async def user_logout(response: Response):
+    response.delete_cookie("access_token")
+    return {"message": "Successfully logged out"}
 
     
