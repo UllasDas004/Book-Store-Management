@@ -45,7 +45,7 @@ async def get_all_books(
     books = query.offset(skip).limit(limit).all()
     return books
 
-@router.get("/{book_id}")
+@router.get("/{book_id}", response_model = BookResponse)
 async def get_single_book(book_id: int,db: Session = Depends(get_db)):
     db_book = db.query(Book).filter(Book.id == book_id).first()
     if not db_book:

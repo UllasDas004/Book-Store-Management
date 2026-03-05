@@ -20,6 +20,11 @@ class BookCreate(BookBase):
 class BookResponse(BookBase):
     id: int
     stock_quantity: int = Field(default=0, ge=0)
+    
+    reviews: list["ReviewResponse"] = []
 
     class Config:
         from_attributes = True
+
+from src.schemas.interaction import ReviewResponse
+BookResponse.model_rebuild()
