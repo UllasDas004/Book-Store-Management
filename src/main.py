@@ -13,6 +13,7 @@ from src.api.reviews import router as review_router
 from src.api.favourites import router as favourite_router
 from src.api.users import router as user_router
 from src.api.admin import router as admin_router
+from src.api.requisitions import router as requisition_router
 
 app = FastAPI()
 
@@ -35,6 +36,7 @@ app.include_router(review_router)
 app.include_router(favourite_router)
 app.include_router(user_router)
 app.include_router(admin_router)
+app.include_router(requisition_router)
 
 @app.get("/")
 def read_root():
