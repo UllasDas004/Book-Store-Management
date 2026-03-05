@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 import shutil
 import os
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func
 from typing import List, Optional
 from src.db.database import get_db
@@ -63,7 +63,7 @@ async def get_all_books(
 
 @router.get("/{book_id}", response_model = BookResponse)
 async def get_single_book(book_id: int,db: Session = Depends(get_db)):
-    db_book = db.query(Book).filter(Book.id == book_id).first()
+    db_book = db.query(Book).options(joinedload(Book.reviews)).filter(Book.id == book_id).first()
     if not db_book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
     return db_book

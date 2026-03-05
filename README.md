@@ -81,10 +81,11 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
 
 ## ⚡ Performance & Database Optimizations
 
-To ensure the backend can handle thousands of concurrent users and massive order histories without slowing down, we implemented strategic PostgeSQL **B-Tree Indexing**.
+To ensure the backend can handle thousands of concurrent users and massive order histories without slowing down, we implemented strategic PostgeSQL **B-Tree Indexing** and **Query Optimization**.
 
 *   **Foreign Key Indexes:** Every single foreign key in the database (`user_id` and `book_id` across the Carts, Sales, Reviews, Favorites, and Requisitions tables) is explicitly indexed (`index=True`).
 *   **The Benefit:** Without these indexes, an endpoint like "View Order History" (`GET /sales/history`) would force PostgreSQL to perform a *Sequential Scan* (checking every single row in the Sales table one by one). By creating indexes, Postgres instantly looks up the user's records in a highly optimized hash map, dropping query latency from hundreds of milliseconds (or worse at scale) down to virtually `1ms`.
+*   **Preventing N+1 Query Problems:** In endpoints that return complex relationships (like fetching a single book and all of its reviews), we actively use SQLAlchemy's `joinedload()` (Eager Loading). Instead of Pydantic secretly triggering dozens of individual SQL queries behind the scenes while serializing the JSON response, we force SQLAlchemy to fetch the parent row and all child rows simultaneously in one single, highly-optimized SQL `JOIN` query.
 
 ---
 

@@ -16,3 +16,9 @@ Every file represents a distinct functional area of the bookstore. Inside each f
 *   `users.py`: Profile management endpoints (updating address, resetting passwords).
 
 *Note: All of these individual routers are bundled together and initialized inside the central `src/main.py` file.*
+
+## ⚡ API Optimizations & The "N+1 Problem"
+This API layer has been explicitly optimized to prevent the **N+1 Query Problem**. 
+When an endpoint needs to fetch a database model (like a `Book`) that contains a child relationship (like `Reviews`), a naive ORM implementation will run 1 query to get the book, and then *secretly* run an extra query for every single review attached to that book during JSON serialization. If you have 50 items, it runs 51 database queries instantly locking up the server.
+
+If you browse files like `books.py`, you will notice we actively stop this by using SQLAlchemy's `joinedload()`. This is called **Eager Loading**, and it forces PostgreSQL to compute a single highly-optimized `JOIN` and return everything to the Python server in exactly *one* query. 
