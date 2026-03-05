@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 from datetime import datetime, timedelta, timezone
-from src.db.database import get_db
+from src.db.database import get_db, SessionLocal
 from src.models.requisition import Requisition
 from src.models.book import Book
 from src.models.interaction import Sale
@@ -47,60 +47,61 @@ async def create_requisitions(
 
     return new_req
 
+def process_auto_requisitions(admin_id: int):
+    # We must open a fresh database session for background threads!
+    db = SessionLocal()
+    try:
+        LOW_STOCK_THRESHOLD = 10
+        three_months_ago = datetime.now(timezone.utc) - timedelta(days=90)
+        
+        low_stock_books = db.query(Book).filter(Book.stock_quantity < LOW_STOCK_THRESHOLD).all()
+        generated_requisitions = []
+        
+        for book in low_stock_books:
+            # Check if there is already a pending requisition for this book
+            existing_req = db.query(Requisition).filter(
+                Requisition.book_id == book.id,
+                Requisition.status == "pending"
+            ).first()
+            
+            if existing_req:
+                continue # We already have a pending order for this book!
+            
+            # Calculate how many of this book sold in the last 3 months
+            sales_data = db.query(func.sum(Sale.quantity)).filter(
+                Sale.book_id == book.id,
+                Sale.timestamp >= three_months_ago
+            ).scalar()
+            
+            # If it sold well, order that many. If not, order a default of 10.
+            quantity_to_order = sales_data if sales_data and sales_data > 0 else 10
+            
+            new_req = Requisition(
+                user_id=admin_id,
+                book_id=book.id,
+                quantity=quantity_to_order,
+                status="pending"
+            )
+            
+            db.add(new_req)
+            generated_requisitions.append(new_req)
 
-@router.post("/auto", response_model=List[RequisitionResponse], status_code=status.HTTP_201_CREATED)
+        db.commit()
+    finally:
+        db.close()
+
+
+@router.post("/auto", status_code=status.HTTP_202_ACCEPTED)
 async def auto_generate_requisitions(
-    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks,
     current_admin: User = Depends(get_current_admin_user)
 ):
     """Admin Only: Auto-generate requisitions based on low stock and last 3 months of sales."""
     
-    # Threshold for low stock
-    LOW_STOCK_THRESHOLD = 10
+    # Send the admin_id to the background worker
+    background_tasks.add_task(process_auto_requisitions, current_admin.id)
     
-    # Date 3 months ago
-    three_months_ago = datetime.now(timezone.utc) - timedelta(days=90)
-    
-    # 1. Find all books with stock < 10
-    low_stock_books = db.query(Book).filter(Book.stock_quantity < LOW_STOCK_THRESHOLD).all()
-    
-    generated_requisitions = []
-    
-    for book in low_stock_books:
-        # Check if there is already a pending requisition for this book
-        existing_req = db.query(Requisition).filter(
-            Requisition.book_id == book.id,
-            Requisition.status == "pending"
-        ).first()
-        
-        if existing_req:
-            continue # We already have a pending order for this book!
-        
-        # Calculate how many of this book sold in the last 3 months
-        sales_data = db.query(func.sum(Sale.quantity)).filter(
-            Sale.book_id == book.id,
-            Sale.timestamp >= three_months_ago
-        ).scalar()
-        
-        # If it sold well, order that many. If not, order a default of 10.
-        quantity_to_order = sales_data if sales_data and sales_data > 0 else 10
-        
-        new_req = Requisition(
-            user_id=current_admin.id,
-            book_id=book.id,
-            quantity=quantity_to_order,
-            status="pending"
-        )
-        
-        db.add(new_req)
-        generated_requisitions.append(new_req)
-        
-    db.commit()
-    
-    for req in generated_requisitions:
-        db.refresh(req)
-        
-    return generated_requisitions
+    return {"message": "Auto-restock process has been queued in the background!"}
 
 
 @router.get("/", response_model = List[RequisitionResponse])

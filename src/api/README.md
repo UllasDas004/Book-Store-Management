@@ -22,3 +22,6 @@ This API layer has been explicitly optimized to prevent the **N+1 Query Problem*
 When an endpoint needs to fetch a database model (like a `Book`) that contains a child relationship (like `Reviews`), a naive ORM implementation will run 1 query to get the book, and then *secretly* run an extra query for every single review attached to that book during JSON serialization. If you have 50 items, it runs 51 database queries instantly locking up the server.
 
 If you browse files like `books.py`, you will notice we actively stop this by using SQLAlchemy's `joinedload()`. This is called **Eager Loading**, and it forces PostgreSQL to compute a single highly-optimized `JOIN` and return everything to the Python server in exactly *one* query. 
+
+## ⚡ Background Processing 
+Endpoints like `POST /requisitions/auto` use FastAPI's **BackgroundTasks**. Instead of freezing the server while the backend calculates 90 days of sales data for every book in the database, it immediately returns a `202 Accepted` response. A fresh database session is then spun up on a background worker thread (`process_auto_requisitions`) to handle the heavy lifting without blocking other customers from browsing the store!
