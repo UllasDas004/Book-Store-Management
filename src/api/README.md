@@ -31,3 +31,6 @@ If an admin tries to load 100,000 old requisition orders, pulling all those SQL 
 
 ## 🛡️ API Rate Limiting (DDoS Protection)
 The public-facing components of this API (such as the heavily-trafficked `GET /books/` catalog) are fortified with `SlowAPI`. We strictly enforce a limit of **60 requests per minute** per user IP address. This directly prevents malicious bots, scrapers, and DDoS attacks from spamming the API and intentionally crashing the database. If the limit is exceeded, FastAPI intercepts the request and safely returns a `429 Too Many Requests` error without ever executing the underlying logic.
+
+## 🚀 In-Memory Caching
+To achieve absolute maximum speed, heavy public endpoints are decorated with `@cache(expire=60)` from `fastapi-cache2`. The server remembers the exact database output of complex queries in ultra-fast RAM. If 5,000 customers open the "All Books" catalog within the same minute, PostgreSQL only executes the SQL search query exactly **1 time**. The other 4,999 requests are instantly served from the high-speed Python cache!

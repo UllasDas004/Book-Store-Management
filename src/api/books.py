@@ -3,6 +3,7 @@ import shutil
 import os
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func
+from fastapi_cache.decorator import cache
 from typing import List, Optional
 from src.db.database import get_db
 from src.models.book import Book
@@ -22,6 +23,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 @router.get("/", response_model = List[BookResponse])
 @limiter.limit("60/minute")
+@cache(expire=60)
 async def get_all_books(
     request: Request,
     db: Session = Depends(get_db),

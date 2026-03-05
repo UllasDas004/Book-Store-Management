@@ -18,4 +18,5 @@ dependencies = [
     "python-jose[cryptography]>=3.5.0",
     "httpx>=0.28.1",
     "slowapi>=0.1.9",
+    "fastapi-cache2>=0.2.2",
 ]

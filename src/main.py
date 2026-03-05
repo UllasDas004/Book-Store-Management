@@ -1,4 +1,7 @@
 from fastapi import FastAPI, Request
+from contextlib import asynccontextmanager
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -19,7 +22,12 @@ from src.api.users import router as user_router
 from src.api.admin import router as admin_router
 from src.api.requisitions import router as requisition_router
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    FastAPICache.init(InMemoryBackend())
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # Setup Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
