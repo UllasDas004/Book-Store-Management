@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from src.api.books import router as book_router
 from src.db.database import engine, Base
@@ -14,6 +15,15 @@ from src.api.users import router as user_router
 from src.api.admin import router as admin_router
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 Base.metadata.create_all(bind=engine)
 
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
