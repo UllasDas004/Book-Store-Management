@@ -25,3 +25,6 @@ If you browse files like `books.py`, you will notice we actively stop this by us
 
 ## ⚡ Background Processing 
 Endpoints like `POST /requisitions/auto` use FastAPI's **BackgroundTasks**. Instead of freezing the server while the backend calculates 90 days of sales data for every book in the database, it immediately returns a `202 Accepted` response. A fresh database session is then spun up on a background worker thread (`process_auto_requisitions`) to handle the heavy lifting without blocking other customers from browsing the store!
+
+## 📦 Memory-Safe Pagination
+If an admin tries to load 100,000 old requisition orders, pulling all those SQL records into Python memory at once will crash Docker. To prevent this, data-heavy endpoints structurally incorporate strict **Server-Side Pagination** (`skip` and `limit`). By defaulting to yielding chunks of 50 items at a time, the backend RAM usage stays perfectly flat and predictable, regardless of how massive your database grows!

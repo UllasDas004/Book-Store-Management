@@ -107,9 +107,14 @@ async def checkout_cart(db: Session = Depends(get_db), current_user: User = Depe
     return sales_records
 
 @router.get("/history", response_model = List[SaleResponse])
-async def get_sale_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+async def get_sale_history(
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_active_user),
+    skip: int = 0,
+    limit: int = 50
+):
     """Get all sales history for the current user"""
-    sales = db.query(Sale).filter(Sale.user_id == current_user.id).all()
+    sales = db.query(Sale).filter(Sale.user_id == current_user.id).offset(skip).limit(limit).all()
     return sales
 
 class CartQuantityUpdate(BaseModel):

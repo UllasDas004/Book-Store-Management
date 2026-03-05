@@ -107,9 +107,11 @@ async def auto_generate_requisitions(
 @router.get("/", response_model = List[RequisitionResponse])
 async def get_all_requisitions(
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_current_admin_user)
+    current_admin: User = Depends(get_current_admin_user),
+    skip: int = 0,
+    limit: int = 50
 ):
-    return db.query(Requisition).all()
+    return db.query(Requisition).offset(skip).limit(limit).all()
 
 
 @router.put("/{req_id}/receive", response_model = RequisitionResponse)
