@@ -9,6 +9,7 @@ from src.models.requisition import Requisition
 from src.api.auth import router as auth_router
 from src.api.sales import router as sales_router
 from src.api.reviews import router as review_router
+from src.api.favourites import router as favourite_router
 
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
@@ -19,6 +20,7 @@ app.include_router(book_router)
 app.include_router(auth_router)
 app.include_router(sales_router)
 app.include_router(review_router)
+app.include_router(favourite_router)
 
 @app.get("/")
 def read_root():
