@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey
 from src.db.database import Base
 from sqlalchemy.orm import relationship
 
@@ -19,6 +19,7 @@ class Book(Base):
     discount_percentage = Column(Float, default=0.0)
     short_reviews = Column(Text)
     stock_quantity = Column(Integer, default=0, nullable=False)
+    admin_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True)
 
     cart_items = relationship("CartItem", back_populates="book")
     favourites = relationship("Favourite", back_populates="book")

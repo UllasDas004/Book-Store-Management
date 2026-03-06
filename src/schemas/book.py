@@ -20,6 +20,7 @@ class BookCreate(BookBase):
 class BookResponse(BookBase):
     id: int
     stock_quantity: int = Field(default=0, ge=0)
+    admin_id: Optional[int] = None
     
     reviews: list["ReviewResponse"] = []
 

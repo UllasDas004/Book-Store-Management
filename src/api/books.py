@@ -33,7 +33,8 @@ async def get_all_books(
     category: Optional[str] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
-    sort_by: Optional[str] = None
+    sort_by: Optional[str] = None,
+    admin_id: Optional[int] = None
 ):
     """Anyone can view the list of all books."""
     query = db.query(Book)
@@ -55,6 +56,9 @@ async def get_all_books(
         query = query.filter(Book.price >= min_price)
     if max_price is not None:
         query = query.filter(Book.price <= max_price)
+        
+    if admin_id is not None:
+        query = query.filter(Book.admin_id == admin_id)
         
     if sort_by == "price_asc":
         query = query.order_by(Book.price.asc())
@@ -84,7 +88,7 @@ async def create_book(book: BookCreate, db: Session = Depends(get_db), current_a
     if db_book:
         raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "Book with this ISBN already exists")
     
-    new_book = Book(**book.model_dump())
+    new_book = Book(**book.model_dump(), admin_id=current_admin.id)
     db.add(new_book)
     db.commit()
     db.refresh(new_book)
