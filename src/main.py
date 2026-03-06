@@ -4,10 +4,10 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.inmemory import InMemoryBackend
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import os
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from fastapi.staticfiles import StaticFiles
 from src.api.books import router as book_router
 from src.db.database import engine, Base
 from src.models.book import Book
@@ -49,6 +49,7 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
+os.makedirs("src/static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
 app.include_router(book_router)
