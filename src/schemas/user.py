@@ -30,3 +30,12 @@ class UserUpdate(BaseModel):
 class UserPasswordUpdate(BaseModel):
     current_password: str
     new_password: str
+
+
+class TopVendorResponse(BaseModel):
+    admin_id: int
+    username: str
+    total_books_sold: int
+
+    class Config:
+        from_attributes = True

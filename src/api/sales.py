@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi_cache.decorator import cache
 from sqlalchemy.orm import Session
+from sqlalchemy import func, desc
 from typing import List
 from src.db.database import get_db
 from src.models.interaction import Sale, CartItem
 from src.models.book import Book
 from src.models.user import User
 from src.schemas.interaction import SaleCreate, SaleResponse, CartItemCreate, CartItemResponse, CartResponse
+from src.schemas.user import TopVendorResponse
 from src.api.deps import get_current_active_user, get_current_admin_user
 from pydantic import BaseModel
 
@@ -174,3 +177,24 @@ async def update_sales_status(
     db.commit()
     db.refresh(sale)
     return sale
+
+
+@router.get("/top-vendors", response_model=List[TopVendorResponse])
+@cache(expire = 3600)
+async def get_top_vendors(limit: int = 5, db: Session = Depends(get_db)):
+    """Get the top vendors based on the total number of books sold."""
+
+    top_vendors = db.query(
+        Book.admin_id,
+        User.username,
+        func.sum(Sale.quantity).label("total_books_sold")
+    )\
+        .join(Book, Sale.book_id == Book.id)\
+            .join(User, Book.admin_id == User.id)\
+                .group_by(Book.admin_id, User.username)\
+                    .order_by(desc("total_books_sold"))\
+                        .limit(limit)\
+                            .all()
+    
+    return top_vendors
+    

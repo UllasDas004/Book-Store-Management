@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 import shutil
 import os
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, desc
 from fastapi_cache.decorator import cache
 from typing import List, Optional
 from src.db.database import get_db
@@ -72,6 +72,21 @@ async def get_all_books(
     
     books = query.offset(skip).limit(limit).all()
     return books
+
+
+@router.get("/best-deals", response_model=List[BookResponse])
+@cache(expire = 3600)
+async def get_best_deals(limit: int = 5,db: Session = Depends(get_db)):
+    """Fetch the top books currently on sale with the highest discounts."""
+
+    deals = db.query(Book)\
+        .filter(Book.discount_percentage > 0)\
+            .order_by(Book.discount_percentage.desc())\
+                .limit(limit)\
+                    .all()
+
+    return deals
+
 
 @router.get("/{book_id}", response_model = BookResponse)
 async def get_single_book(book_id: int,db: Session = Depends(get_db)):
