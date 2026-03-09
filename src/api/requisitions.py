@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -108,8 +108,8 @@ async def auto_generate_requisitions(
 async def get_all_requisitions(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
-    skip: int = 0,
-    limit: int = 50
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
 ):
     return db.query(Requisition).offset(skip).limit(limit).all()
 

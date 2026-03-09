@@ -20,6 +20,7 @@ class Book(Base):
     short_reviews = Column(Text)
     stock_quantity = Column(Integer, default=0, nullable=False)
     admin_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     cart_items = relationship("CartItem", back_populates="book")
     favourites = relationship("Favourite", back_populates="book")

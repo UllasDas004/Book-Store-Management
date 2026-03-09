@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, Query
 import shutil
 import os
 from sqlalchemy.orm import Session, joinedload
@@ -8,7 +8,7 @@ from typing import List, Optional
 from src.db.database import get_db
 from src.models.book import Book
 from src.models.user import User
-from src.schemas.book import BookCreate, BookResponse
+from src.schemas.book import BookCreate, BookResponse, BookUpdate, BookDetailResponse
 from src.api.deps import get_current_admin_user
 
 
@@ -27,8 +27,8 @@ limiter = Limiter(key_func=get_remote_address)
 async def get_all_books(
     request: Request,
     db: Session = Depends(get_db),
-    skip: int = 0,
-    limit: int = 10,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
     search: Optional[str] = None,
     category: Optional[str] = None,
     min_price: Optional[float] = None,
@@ -37,7 +37,7 @@ async def get_all_books(
     admin_id: Optional[int] = None
 ):
     """Anyone can view the list of all books."""
-    query = db.query(Book)
+    query = db.query(Book).filter(Book.is_active == True)
     if search:
         # Use pg_trgm similarity to handle typos (score > 0.3 is a good starting point)
         query = query.filter(
@@ -80,7 +80,7 @@ async def get_best_deals(limit: int = 5,db: Session = Depends(get_db)):
     """Fetch the top books currently on sale with the highest discounts."""
 
     deals = db.query(Book)\
-        .filter(Book.discount_percentage > 0)\
+        .filter(Book.is_active == True, Book.discount_percentage > 0)\
             .order_by(Book.discount_percentage.desc())\
                 .limit(limit)\
                     .all()
@@ -88,11 +88,14 @@ async def get_best_deals(limit: int = 5,db: Session = Depends(get_db)):
     return deals
 
 
-@router.get("/{book_id}", response_model = BookResponse)
+@router.get("/{book_id}", response_model = BookDetailResponse)
 async def get_single_book(book_id: int,db: Session = Depends(get_db)):
     db_book = db.query(Book).options(joinedload(Book.reviews)).filter(Book.id == book_id).first()
     if not db_book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
+    
+    # Sort reviews by ID descending (newest first) and limit to top 10
+    db_book.reviews = sorted(db_book.reviews, key=lambda r: r.id, reverse=True)[:10]
     return db_book
 
 @router.post("/",response_model = BookResponse, status_code = status.HTTP_201_CREATED)
@@ -109,10 +112,11 @@ async def create_book(book: BookCreate, db: Session = Depends(get_db), current_a
     db.refresh(new_book)
     return new_book
 
-@router.put("/{book_id}", response_model = BookResponse, status_code = status.HTTP_201_CREATED)
+@router.patch("/{book_id}", response_model = BookResponse, status_code = status.HTTP_200_OK)
+@router.put("/{book_id}", response_model = BookResponse, status_code = status.HTTP_200_OK)
 async def update_book(
     book_id: int,
-    book_update: BookCreate,
+    book_update: BookUpdate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
 ):
@@ -141,7 +145,8 @@ async def delete_book(
     if not db_book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
     
-    db.delete(db_book)
+    db_book.is_active = False
+    db_book.stock_quantity = 0
     db.commit()
     return None
 

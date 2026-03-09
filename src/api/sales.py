@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi_cache.decorator import cache
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -24,28 +24,31 @@ async def add_to_cart(cart_item: CartItemCreate, db: Session = Depends(get_db), 
     book = db.query(Book).filter(Book.id == cart_item.book_id).first()
     if not book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
-
-    if book.stock_quantity < cart_item.quantity:
-        raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "Not enough stock available")
     
     existing_item = db.query(CartItem).filter(CartItem.user_id == current_user.id, CartItem.book_id == cart_item.book_id).first()
 
+    new_total_quantity = cart_item.quantity
     if existing_item:
-        existing_item.quantity += cart_item.quantity
+        new_total_quantity += existing_item.quantity
+
+    if book.stock_quantity < new_total_quantity:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail = f"Not enough stock, Only {book.stock_quantity} left.")
+    
+    if existing_item:
+        existing_item.quantity = new_total_quantity
         db.commit()
         db.refresh(existing_item)
         return existing_item
-
+    
     new_cart_item = CartItem(
         user_id = current_user.id,
-        book_id = cart_item.book_id,
+        book_id = book.id,
         quantity = cart_item.quantity
     )
     db.add(new_cart_item)
     db.commit()
     db.refresh(new_cart_item)
     return new_cart_item
-    
 
 @router.get("/cart", response_model = CartResponse)
 async def get_cart_items(
@@ -113,8 +116,8 @@ async def checkout_cart(db: Session = Depends(get_db), current_user: User = Depe
 async def get_sale_history(
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_active_user),
-    skip: int = 0,
-    limit: int = 50
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
 ):
     """Get all sales history for the current user"""
     sales = db.query(Sale).filter(Sale.user_id == current_user.id).offset(skip).limit(limit).all()
@@ -181,7 +184,7 @@ async def update_sales_status(
 
 @router.get("/top-vendors", response_model=List[TopVendorResponse])
 @cache(expire = 3600)
-async def get_top_vendors(limit: int = 5, db: Session = Depends(get_db)):
+async def get_top_vendors(limit: int = Query(5, ge=1, le=100), db: Session = Depends(get_db)):
     """Get the top vendors based on the total number of books sold."""
 
     top_vendors = db.query(
