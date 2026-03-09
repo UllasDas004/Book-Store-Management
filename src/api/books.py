@@ -126,7 +126,7 @@ async def update_book(
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
     
     update_data = book_update.model_dump(exclude_unset=True)
-    for key, value in update_data.model_dump().items():
+    for key, value in update_data.items():
         setattr(db_book, key, value)
     
     db.commit()

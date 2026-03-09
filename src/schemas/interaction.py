@@ -1,11 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 from src.schemas.book import BookResponse
 
 class CartItemBase(BaseModel):
     book_id: int
-    quantity: int = 1
+    quantity: int = Field(default=1, gt=0, le=100)
 
 class CartItemCreate(CartItemBase):
     pass
@@ -42,7 +42,7 @@ class FavouriteResponse(FavouriteBase):
 
 class SaleBase(BaseModel):
     book_id: int
-    quantity: int
+    quantity: int = Field(gt=0)
 
 class SaleCreate(SaleBase):
     pass
@@ -62,7 +62,7 @@ class SaleResponse(SaleBase):
 
 class RequisitionBase(BaseModel):
     book_id: int
-    quantity: int
+    quantity: int = Field(gt=0)
 
 class RequisitionCreate(RequisitionBase):
     pass
@@ -80,8 +80,8 @@ class RequisitionResponse(RequisitionBase):
 
 
 class ReviewBase(BaseModel):
-    rating: int
-    comment: Optional[str] = None
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = Field(default=None, max_length=1000)
 
 class ReviewCreate(ReviewBase):
     pass
