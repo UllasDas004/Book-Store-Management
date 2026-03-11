@@ -5,7 +5,14 @@ This directory contains **Pydantic** classes used for robust data validation and
 ## What is a "Schema"?
 While our `/models` folder dictates what goes into the **Database**, our `/schemas` folder dictates what comes over the **Internet** (the HTTP Requests and Responses).
 
-These classes ensure that when a React frontend sends us data (like creating a new book), it provides *exactly* the fields we require with the correct data types (strings, integers, etc.). If the data is bad, FastAPI automatically rejects it with a 422 Unprocessable Entity error before our code even runs!
+These classes ensure that when a React frontend sends us data (like creating a new book), it provides *exactly* the fields we require with the correct data types (strings, integers, etc.). 
+
+Furthermore, we heavily employ Pydantic's `Field` parameter to strictly enforce **Data Sanitization**:
+*   Enforcing minimum and maximum string lengths (preventing users from passing empty strings `""`).
+*   Enforcing boundaries on integers/floats (e.g. prices must be `gt=0`, and reviews must be between `1` and `5`).
+*   Setting maximum caps (e.g. users cannot add more than `100` items to a cart at once to prevent integer overflow abuse).
+
+If the data is bad, FastAPI automatically rejects it with a 422 Unprocessable Entity error before our code even runs!
 
 ## Why separate Schemas and Models?
 Security! When a user requests their profile data, our database `User` model contains their secret, hashed password. By forcing the database model to serialize through our `UserResponse` schema (which explicitly excludes the password field), we guarantee we will never accidentally leak sensitive data back to the frontend!

@@ -36,9 +36,9 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
 *   **Detailed Views:** Fetching a single book (`GET /books/{id}`) automatically eager-loads and displays all user **reviews**.
 *   **Admin Powers:**
     *   Add new books (`POST /books/`).
-    *   Update book details like title, price, or applying a discount percentage (`PUT /books/{id}`).
+    *   Update book details entirely (`PUT /books/{id}`) or partially (`PATCH /books/{id}`).
     *   Upload high-quality book covers that are served statically (`POST /books/{id}/cover`).
-    *   Delete books from the inventory (`DELETE /books/{id}`).
+    *   Soft-delete books from the inventory, preserving historical sales data (`DELETE /books/{id}`).
 
 ### 🛒 Shopping Cart & Checkout (`/sales`)
 *   **Cart Management:**
@@ -67,6 +67,8 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
 *   **Advanced SQL Analytics:** 
     *   **Top 5 Best Selling Books:** Calculates lifetime copies sold.
     *   **Top 5 Highest Spending Customers:** Calculates lifetime revenue per user.
+    *   **Top Vendors:** Calculates the admins who have sold the highest total quantity of books (`GET /sales/top-vendors`).
+    *   **Best Deals:** Retrieves the books with the highest active discount percentages (`GET /books/best-deals`).
 
 ### 📦 Automated Inventory Requisitions (`/requisitions`)
 *   **Manual Orders:** Admins can place a pending order to the publisher to restock specific books (`POST /requisitions/`).
@@ -91,6 +93,7 @@ To ensure the backend can handle thousands of concurrent users and massive order
 *   **Database Connection Pooling:** The SQLAlchemy engine is tuned to handle High Availability scenarios. Instead of crashing PostgreSQL with "too many clients" during a traffic spike, the engine maintains a strict pool of `20` persistent connections, with a `max_overflow` of `10`, and a `pool_timeout`. This gracefully queues incoming requests during extreme load, ensuring the database stays upright.
 *   **API Rate Limiting (DDoS Protection):** The application integrates `SlowAPI` to actively defend against bot spam and DDoS attacks. Public endpoints (like `GET /books/`) are strictly hard-capped at `60 requests per minute` per IP address. If a user exceeds this limit, FastAPI automatically blocks them with a `429 Too Many Requests` error, preserving server resources.
 *   **Response Caching (FastAPI-Cache):** The highly-trafficked book catalog uses `fastapi-cache2`. The backend executes the complex SQL queries for the book catalog once, and holds the JSON output in server RAM. For the next 60 seconds, any customer browsing the store receives an instant, pre-calculated response without the backend ever touching PostgreSQL.
+*   **Strict Data Sanitization:** Pydantic `Field` validations are aggressively enforced across all schemas (`ge`, `le`, `min_length`, `max_length`). This mathematically guarantees no blank strings, negative prices, or extreme cart quantities (like 1000 items) can bypass the API and corrupt the database.
 *   **HTTP-Only Cookies & CORS:** To prevent Cross-Site Scripting (XSS) attacks, the authentication system was migrated from raw `Bearer` tokens to secure, `HttpOnly` Set-Cookies. JWT access tokens are safely managed by the browser. Because of this, the FastAPI `CORSMiddleware` in `src/main.py` is strictly tuned to only allow requests from explicit frontend origins (e.g. `http://localhost:5173`) while rejecting wildcard requests.
 
 ---

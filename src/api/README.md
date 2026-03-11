@@ -21,7 +21,15 @@ Every file represents a distinct functional area of the bookstore. Inside each f
 This API layer has been explicitly optimized to prevent the **N+1 Query Problem**. 
 When an endpoint needs to fetch a database model (like a `Book`) that contains a child relationship (like `Reviews`), a naive ORM implementation will run 1 query to get the book, and then *secretly* run an extra query for every single review attached to that book during JSON serialization. If you have 50 items, it runs 51 database queries instantly locking up the server.
 
-If you browse files like `books.py`, you will notice we actively stop this by using SQLAlchemy's `joinedload()`. This is called **Eager Loading**, and it forces PostgreSQL to compute a single highly-optimized `JOIN` and return everything to the Python server in exactly *one* query. 
+If you browse files like `books.py`, you will notice we actively stop this in two ways:
+1.  **Schema Separation:** We strictly separated `BookResponse` (for the catalog list, which purposefully ignores reviews) from `BookDetailResponse` (for the single book view, which includes reviews).
+2.  **Eager Loading:** We use SQLAlchemy's `joinedload()`. This forces PostgreSQL to compute a single highly-optimized `JOIN` and return everything to the Python server in exactly *one* query. 
+
+## 🛡️ Robust State Validations
+The API layer actively defends against logic vulnerabilities such as the **"Infinite Cart Stock"** bypass. By dynamically calculating `existing_cart_quantity + incoming_quantity` *before* comparing against the database `stock_quantity`, the API mathematically prevents malicious users from tricking the system into selling more books than physically exist in the warehouse.
+
+## ✨ Flexible Updates (PUT vs PATCH)
+For modifying resources, the API implements both strict replacement (`PUT`) and flexible partial updates (`PATCH`). Using `exclude_unset=True` with Pydantic schemas, administrators can dynamically update a single field (like raising a discount percentage) without having to transmit the entire book payload.
 
 ## ⚡ Background Processing 
 Endpoints like `POST /requisitions/auto` use FastAPI's **BackgroundTasks**. Instead of freezing the server while the backend calculates 90 days of sales data for every book in the database, it immediately returns a `202 Accepted` response. A fresh database session is then spun up on a background worker thread (`process_auto_requisitions`) to handle the heavy lifting without blocking other customers from browsing the store!

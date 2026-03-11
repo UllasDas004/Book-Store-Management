@@ -5,7 +5,7 @@ This directory contains **SQLAlchemy ORM** (Object-Relational Mapping) classes.
 ## What happens here?
 These Python classes directly represent the physical tables stored inside our PostgreSQL database. By defining relationships and columns here, SQLAlchemy automatically creates the database schema for us!
 
-*   `book.py`: Defines the `Book` table (inventory items with price, stock, ISBN, etc.).
+*   `book.py`: Defines the `Book` table (inventory items with price, stock, ISBN, etc.). Implements `is_active` for **Soft Deletions** and `admin_id` to track the specific vendor who created the book.
 *   `user.py`: Defines the `User` table (handles both 'customer' and 'admin' roles, plus hashed passwords).
 *   `interaction.py`: Defines the actions users take with books:
     *   `CartItem`: Books currently sitting in a user's shopping cart.
@@ -13,6 +13,10 @@ These Python classes directly represent the physical tables stored inside our Po
     *   `Review`: A user's rating and comment for a book.
     *   `Favourite`: A relationship mapping a user to a book they want to save for later.
 *   `requisition.py`: Defines the `Requisition` table (orders placed with publishers to restock books).
+
+## 🛡️ Data Integrity & Soft Deletes
+The models are structured to strictly enforce relational integrity. For example, if a customer purchases a book, a `Sale` record permanently points to that `book_id`. If an administrator tries to `DELETE` that book later, PostgreSQL would historically crash with a `ForeignKey IntegrityError`. 
+To prevent this, the `Book` model implements an `is_active` boolean flag. Instead of destroying historical sales data, books are "Soft Deleted" by toggling this flag, seamlessly hiding them from the public catalog while keeping enterprise analytic data mathematically perfect.
 
 ## ⚡ Note on Performance & Indexing
 If you look at the interaction models, you will notice that every single Foreign Key (`user_id` and `book_id`) is defined with `index=True`. 
