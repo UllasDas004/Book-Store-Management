@@ -9,7 +9,7 @@ class BookBase(BaseModel):
     edition: Optional[str] = Field(default=None, max_length=50)
     publication_year: Optional[int] = Field(default=None, ge=1000, le=9999)
     price: float = Field(gt=0)
-    category: str = Field(min_length=1, max_length=100)
+    category: list[str] = Field(min_length=1, description="List of genres/categories")
     description: Optional[str] = None
     cover_image_url: Optional[str] = None
     discount_percentage: Optional[float] = Field(default=0.0, ge=0, le=100)
@@ -25,7 +25,7 @@ class BookUpdate(BaseModel):
     edition: Optional[str] = Field(default=None, max_length=50)
     publication_year: Optional[int] = Field(default=None, ge=1000, le=9999)
     price: Optional[float] = Field(default=None, gt=0)
-    category: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    category: Optional[list[str]] = Field(default=None, min_length=1, description="List of genres/categories")
     description: Optional[str] = None
     cover_image_url: Optional[str] = None
     discount_percentage: Optional[float] = Field(default=None, ge=0, le=100)

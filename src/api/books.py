@@ -50,7 +50,7 @@ async def get_all_books(
             )
         )
     if category:
-        query = query.filter(Book.category.ilike(f"%{category}%"))
+        query = query.filter(Book.category.any(category))
         
     if min_price is not None:
         query = query.filter(Book.price >= min_price)

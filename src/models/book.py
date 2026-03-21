@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, Text, ForeignKey, Boolean, ARRAY
 from src.db.database import Base
 from sqlalchemy.orm import relationship
 
@@ -13,7 +13,7 @@ class Book(Base):
     edition = Column(String)
     publication_year = Column(Integer)
     price = Column(Float, nullable=False)
-    category = Column(String,index=True, nullable=False)
+    category = Column(ARRAY(String),index=True, nullable=False)
     description = Column(Text)
     cover_image_url = Column(String)
     discount_percentage = Column(Float, default=0.0)
