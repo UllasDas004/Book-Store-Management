@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 class BookBase(BaseModel):
-    isbn: str = Field(min_length=4, max_length=15)
+    isbn: str = Field(min_length=4, max_length=50)
     title: str = Field(min_length=1, max_length=255)
     author: str = Field(min_length=1, max_length=255)
     publisher: str = Field(min_length=1, max_length=255)
