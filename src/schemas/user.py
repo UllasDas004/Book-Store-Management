@@ -26,7 +26,8 @@ class UserResponse(UserBase):
         from_attributes = True
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = Field(default=None, min_length=3, max_length=50)
+    first_name: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    last_name: Optional[str] = Field(default=None, min_length=1, max_length=50)
     email: Optional[EmailStr] = None
     address: Optional[str] = Field(default=None, min_length=3, max_length=200)
     phone_number: Optional[str] = Field(default=None, min_length=10, max_length=15)
