@@ -3,7 +3,8 @@ from typing import Optional
 
 # Base fields all users share
 class UserBase(BaseModel):
-    username: str = Field(min_length=3, max_length=50)
+    first_name: str = Field(min_length=3, max_length=50)
+    last_name: str = Field(min_length=3, max_length=50)
     email: EmailStr
     address: Optional[str] = Field(default=None, min_length=3, max_length=200)
     phone_number: Optional[str] = Field(default=None, min_length=10, max_length=15)
@@ -15,6 +16,9 @@ class UserCreate(UserBase):
 # What we send back to the client (Notice we NEVER send the password back!)
 class UserResponse(UserBase):
     id: int
+    first_name: str
+    last_name: str
+    username: str
     role: str
     is_active: bool
 

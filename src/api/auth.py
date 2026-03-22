@@ -5,6 +5,7 @@ from src.db.database import get_db
 from src.models.user import User
 from src.schemas.user import UserCreate, UserResponse
 from src.core.security import get_password_hash, verify_password, create_access_token
+import random
 
 router = APIRouter(
     prefix = "/auth",
@@ -23,8 +24,14 @@ async def user_register(user: UserCreate,db: Session = Depends(get_db)):
     hashed_password = get_password_hash(user.password)
 
     # 3. Create the new user object (don't save the plain password!)
+
+    random_suffix = random.randint(1000,9999)
+    generated_username = f"{user.first_name.lower().replace(' ','')}{user.last_name.lower().replace(' ','')}{random_suffix}"
+
     new_user = User(
-        username = user.username,
+        first_name = user.first_name,
+        last_name = user.last_name,
+        username = generated_username,
         email = user.email,
         hashed_password = hashed_password,
         address = user.address,
