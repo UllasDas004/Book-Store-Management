@@ -5,6 +5,8 @@ from src.db.database import SessionLocal
 from src.models.book import Book
 from src.models.user import User
 from src.core.security import get_password_hash
+import src.models.interaction
+import src.models.requisition
 
 SEARCH_TERMS = ["subject:fantasy","subject:romance","subject:mythology","subject:scifi","subject:thriller","subject:action","subject:adventure","subject:history","subject:biography","subject:mystery","subject:comedy"]
 
@@ -78,7 +80,7 @@ def seed_database():
                     continue
 
                 images = volume_info.get('imageLinks', {})
-                cover_url = images.get('thumbnail', '').replace('zoom=1', 'zoom=0')
+                cover_url = images.get('thumbnail', '').replace('http:', 'https:')
                 pub_date = volume_info.get('publishedDate','2020')
                 pub_year = int(pub_date[:4]) if len(pub_date) >= 4 and pub_date[:4].isdigit() else 2020
                 authors = volume_info.get('authors', ["Unknown Author"])
