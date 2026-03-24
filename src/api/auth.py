@@ -68,9 +68,9 @@ async def user_login(
         key="access_token",
         value=f"Bearer {access_token}",
         httponly=True,
-        samesite="lax",
-        secure=False, # Set to True in production with HTTPS
-        max_age=1800 # 30 minutes
+        samesite="none",
+        secure=True, # Set to True in production with HTTPS
+        max_age=7 * 24 * 60 * 60 # 7 days
     )
     
     # We still return the JSON so the frontend knows the login succeeded
