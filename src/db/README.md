@@ -1,18 +1,22 @@
 # 🔌 Database Configuration (`/src/db`)
 
-This folder manages the core connection tunnel between our Python backend and the PostgreSQL physical database.
+This directory manages the core connection tunnel and session lifecycle between our asynchronous FastAPI backend and the physical PostgreSQL database. It is fully configured for both local development and live cloud deployment (Render).
 
+## 🗄️ Architecture Overview
+
+Our backend employs a fully transactional, robust ORM approach leveraging **SQLAlchemy**:
 *   `database.py`: 
-    *   Creates the powerful SQLAlchemy `engine` that manages connection pooling.
-    *   Configures the `SessionLocal` factory, which generates independent database sessions for every single API request.
-    *   Defines the `Base` class that all of our models in `/src/models` inherit from.
-*   Provides the `get_db()` dependency function used widely in our API endpoints to securely yield and close database sessions upon completion.
+    *   Instantiates the SQLAlchemy `engine`, mapping directly to the `DATABASE_URL` resolved dynamically in `/src/core/config.py`.
+    *   Configures the `SessionLocal` factory. Every single API request calling `get_db()` receives a clean, totally isolated database transaction session to guarantee thread safety.
+    *   Defines the declarative `Base` class, which all concrete models (`User`, `Book`, `Sale`, `Requisition`, etc.) inherit from to translate Python classes directly into PostgreSQL tables (`Base.metadata.create_all`).
+*   **Dynamic Connectivity**: Through `pydantic-settings`, the system smartly falls back to individual components (`POSTGRES_USER`, `POSTGRES_HOST`) for local Docker development, but instantly accepts a monolithic `DATABASE_URL` string when pushed to Render's cloud architecture.
 
 ## 🚰 Connection Pooling (High Availability)
-By default, if 1000 users hit your site simultaneously, SQLAlchemy tries to open 1000 literal connections to PostgreSQL, which causes the database to instantly crash with a "too many clients" fatal error. 
 
-To prevent this, the `create_engine` call is strictly tuned:
-*   `pool_size=20`: Keeps exactly 20 connections open at all times to instantly handle the majority of traffic without the latency of establishing new TCP connections.
-*   `max_overflow=10`: If 20 people are currently querying, it temporarily accepts 10 more connections.
-*   `pool_timeout=30`: If 30 people are querying, user #31 does not crash the app. They are smoothly queued and wait up to 30 seconds for a connection to become available!
-*   `pool_pre_ping=True`: Ensures "stale/dropped" connections are quietly discarded instead of throwing internal server errors to the user.
+If your platform suddenly receives 1,000 simultaneous users (e.g. searching for a newly launched book category), opening 1,000 raw TCP socket connections to PostgreSQL would instantly cause the famous `too many clients already` fatal crash. 
+
+To completely prevent latency spikes and crashing, the `create_engine` call in `database.py` is strictly tuned for enterprise loads:
+*   `pool_size=20`: Keeps exactly 20 persistent, high-speed connections "warm" at all times to instantly manage HTTP throughput without connection-establishment latency.
+*   `max_overflow=10`: During explosive traffic bursts, it dynamically allows 10 emergency overflow connections.
+*   `pool_timeout=30`: This acts as a circuit breaker. If traffic maxes out the pool and overflow, the 31st user doesn't crash the server. They are elegantly queued and wait up to 30 seconds for a pooled connection to free up.
+*   `pool_pre_ping=True`: A "pessimistic disconnect" handler. It sends an invisible ping before handing a session to a user to verify the database hasn't silently restarted, vastly reducing internal 500 server errors.

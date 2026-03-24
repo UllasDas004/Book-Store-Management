@@ -1,14 +1,14 @@
 # 📚 Bookstore Management System - Backend API
 
-Welcome to the backend API for the Bookstore Management System! This is a robust, full-featured REST API built with FastAPI that handles everything a modern online bookstore needs: from customer shopping carts and secure checkouts to automated admin inventory restocks and sales analytics.
+Welcome to the backend API for the Bookstore Management System! This is a robust, full-featured REST API built with FastAPI that handles everything a modern online bookstore needs: from customer shopping carts and secure checkouts to automated admin inventory restocks, 7-day persistent authentications, and live database integrations.
 
 ## 🚀 Tech Stack
 
 *   **Framework:** FastAPI (High performance, easy to learn, fast to code, ready for production)
-*   **Database:** PostgreSQL (Robust relational database)
+*   **Database:** PostgreSQL (Robust relational database hosted on Render)
 *   **ORM:** SQLAlchemy (Object Relational Mapper for database interactions)
 *   **Data Validation:** Pydantic (Type hints at runtime for robust payload validation)
-*   **Authentication:** JWT (JSON Web Tokens) & OAuth2 Password Bearer
+*   **Authentication:** JWT (JSON Web Tokens) explicitly secured via HttpOnly, SameSite Cookies.
 *   **Security:** Passlib (bcrypt) for secure password hashing
 *   **Package Manager:** `uv` (Extremely fast Python package installer and resolver)
 
@@ -19,11 +19,11 @@ Welcome to the backend API for the Bookstore Management System! This is a robust
 This API is divided into two main roles: **Customers** (Standard Users) and **Admins** (Store Managers/Owners).
 
 ### 🔒 Authentication & Users (`/auth`, `/users`)
-*   **Registration:** New users can sign up and implicitly receive the `customer` role.
-*   **Login:** Secure login using `OAuth2PasswordRequestForm` returning a JWT access token valid for 30 minutes.
+*   **Registration:** New users can sign up providing a `first_name` and `last_name`. The system intelligently auto-generates unique usernames.
+*   **Login:** Secure login returning a JWT access token baked inside a secure browser cookie. The cookie implements `max_age=604800` (7 days) for persistent logins without sacrificing security headers.
 *   **Profile Management:** 
     *   Users can view their profile (`GET /users/me`).
-    *   Users can update their address and phone number (`PUT /users/me`).
+    *   Users can dynamically update their names, addresses, and phone numbers (`PUT /users/me`).
     *   Users can securely change their passwords (`PUT /users/me/password`).
 *   **Admin Powers:** Admins can permanently delete user accounts (`DELETE /users/{user_id}`).
 
@@ -31,7 +31,7 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
 *   **Public Browsing:** Anyone (even unauthenticated users) can view the book catalog.
     *   Supports pagination (`skip`, `limit`).
     *   Supports dynamic fuzzy searching by **Title**, **Author**, or **ISBN** (using PostgreSQL `pg_trgm` extension for typo tolerance).
-    *   Supports filtering by **Category**, **Min Price**, and **Max Price**.
+    *   Supports array-based filtering by **Category**, **Min Price**, and **Max Price**.
     *   Supports sorting results via `sort_by` (`price_asc`, `price_desc`, `newest`).
 *   **Detailed Views:** Fetching a single book (`GET /books/{id}`) automatically eager-loads and displays all user **reviews**.
 *   **Admin Powers:**
@@ -44,26 +44,26 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
 *   **Cart Management:**
     *   Add items to cart (`POST /sales/`). The API validates that sufficient `stock_quantity` exists before allowing the addition.
     *   View cart (`GET /sales/cart`). The API dynamically calculates the `total_price` based on current prices (and applies any active book discounts!).
-    *   Update quantities in the cart (`PUT /sales/cart/{item_id}`). Setting quantity to `0` removes the item.
-    *   Remove items from the cart (`DELETE /sales/cart/{item_id}`).
+    *   Update quantities (`PUT /sales/cart/{item_id}`).
+    *   Remove items (`DELETE /sales/cart/{item_id}`).
 *   **Checkout:** 
     *   Process the entire cart (`POST /sales/sale`).
     *   The API uses SQLAlchemy `with_for_update()` to lock the book rows, preventing race conditions if two customers try to buy the last copy simultaneously!
-    *   Upon successful checkout, stock is decremented, cart is cleared, and official `Sale` records are generated with a "Pending" status.
+    *   Upon successful checkout, stock is decremented, cart is cleared, and historical `unit_price` markers are permanently recorded in the `Sale` records.
 *   **Order History:** Customers can view their past orders and track their delivery status (`GET /sales/history`).
 *   **Admin Powers:**
     *   Admins can update order statuses (e.g., from "Pending" to "Shipped" or "Delivered") (`PUT /sales/{sale_id}/status`).
 
 ### ⭐ Favorites & Reviews (`/favorites`, `/books/{id}/reviews`)
-*   **Wishlists:** Customers can save books they are interested in for later (`POST /favorites/`).
-*   **Reviews:** Customers can leave exactly *one* review (1-5 stars + optional comment) per book. The API actively prevents duplicate reviews from the same user to ensure fairness.
+*   **Wishlists:** Customers can save books for later (`POST /favorites/`).
+*   **Reviews:** Customers can leave exactly *one* review per book. The API actively prevents duplicate reviews from the same user.
 
 ### 📈 Admin Dashboard & Analytics (`/admin`)
 *   **Dashboard Stats:** An insanely fast endpoint (`GET /admin/dashboard`) designed for frontend UIs to display:
     *   Total system revenue.
     *   Total successful orders.
     *   Total registered customers and catalog size.
-    *   Active low-stock alerts (books with `< 10` copies remaining).
+    *   Active low-stock alerts.
 *   **Advanced SQL Analytics:** 
     *   **Top 5 Best Selling Books:** Calculates lifetime copies sold.
     *   **Top 5 Highest Spending Customers:** Calculates lifetime revenue per user.
@@ -71,7 +71,7 @@ This API is divided into two main roles: **Customers** (Standard Users) and **Ad
     *   **Best Deals:** Retrieves the books with the highest active discount percentages (`GET /books/best-deals`).
 
 ### 📦 Automated Inventory Requisitions (`/requisitions`)
-*   **Manual Orders:** Admins can place a pending order to the publisher to restock specific books (`POST /requisitions/`).
+*   **Manual Orders:** Admins can place a pending order to publishers to restock books (`POST /requisitions/`).
 *   **Smart Auto-Ordering:** 
     *   Admins can trigger `POST /requisitions/auto`.
     *   The API scans for any book dipping below `10` copies in stock.
@@ -96,12 +96,19 @@ To ensure the backend can handle thousands of concurrent users and massive order
 *   **Strict Data Sanitization:** Pydantic `Field` validations are aggressively enforced across all schemas (`ge`, `le`, `min_length`, `max_length`). This mathematically guarantees no blank strings, negative prices, or extreme cart quantities (like 1000 items) can bypass the API and corrupt the database.
 *   **HTTP-Only Cookies & CORS:** To prevent Cross-Site Scripting (XSS) attacks, the authentication system was migrated from raw `Bearer` tokens to secure, `HttpOnly` Set-Cookies. JWT access tokens are safely managed by the browser. Because of this, the FastAPI `CORSMiddleware` in `src/main.py` is strictly tuned to only allow requests from explicit frontend origins (e.g. `http://localhost:5173`) while rejecting wildcard requests.
 
+## 🤖 The Data Seeding Tool (`seed_db.py`)
+To prevent testing against an empty database, we included an automated seeder script!
+By running `uv run python seed_db.py`, the system:
+1. Validates and generates 3 permanent system Admin users.
+2. Iterates through 10 popular book genres.
+3. Rapidly calls the **Google Books API** to scrape 100+ real-world books, accurate authors, ISBNs, and HTTPS cover thumbnail images.
+4. Auto-assigns the inventory sequentially to the new Vendor Admins.
 ---
 
-## 🏃‍♂️ How to Run the Project
+## 🏃‍♂️ How to Run the Project Local/Cloud
 
-1. **Prerequisites:** Ensure you have Python and `uv` installed. You also need a running PostgreSQL database.
-2. **Environment Variables:** Setup your database URL in the `.env` file (if applicable) or ensure the database connection string in `src/db/database.py` is correct.
+1. **Prerequisites:** Ensure you have Python and `uv` installed.
+2. **Environment Variables:** Setup your database URL in the `.env` file (`DATABASE_URL=postgresql://...`).
 3. **Install Dependencies:**
    ```bash
    uv sync
@@ -111,8 +118,5 @@ To ensure the backend can handle thousands of concurrent users and massive order
    uv run uvicorn src.main:app --reload
    ```
 5. **View Documentation:**
-   *   Open your browser and navigate to: `http://127.0.0.1:8000/docs`.
-   *   FastAPI automatically generates an interactive Swagger UI where you can login, authenticate, and test every single endpoint right from your browser!
-
-## 🔐 Default Setup Note
-Since this backend uses Role-Based Access Control, you will need to manually change a user's `role` column from `"customer"` to `"admin"` in your Postgres database (e.g., via pgAdmin) for your very first admin account. After that, you can use the admin endpoints!
+   *   Navigate to: `http://127.0.0.1:8000/docs`.
+   *   You can login, authenticate, and test every single endpoint right from your browser!

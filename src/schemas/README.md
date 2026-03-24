@@ -5,19 +5,20 @@ This directory contains **Pydantic** classes used for robust data validation and
 ## What is a "Schema"?
 While our `/models` folder dictates what goes into the **Database**, our `/schemas` folder dictates what comes over the **Internet** (the HTTP Requests and Responses).
 
-These classes ensure that when a React frontend sends us data (like creating a new book), it provides *exactly* the fields we require with the correct data types (strings, integers, etc.). 
+These classes ensure that when a React frontend sends us data (like creating a new book), it provides *exactly* the fields we require with the correct data types. 
 
 Furthermore, we heavily employ Pydantic's `Field` parameter to strictly enforce **Data Sanitization**:
-*   Enforcing minimum and maximum string lengths (preventing users from passing empty strings `""`).
-*   Enforcing boundaries on integers/floats (e.g. prices must be `gt=0`, and reviews must be between `1` and `5`).
-*   Setting maximum caps (e.g. users cannot add more than `100` items to a cart at once to prevent integer overflow abuse).
+*   Enforcing highly explicit minimum strings `min_length` (rejecting empty values) and specific bounds like `max_length=50` on the `ISBN` field to explicitly prevent payload crashes from abnormally long 16+ digit ISBN outputs provided by 3rd party providers like Google Books!
+*   Enforcing bounds on integers (prices must be `gt=0`).
+*   Configuring complex list constraints (e.g. `list[str]` array assertions for Book Categories).
+*   Mandating `first_name` and `last_name` payload delivery while scrubbing internal data like auto-generated usernames.
 
-If the data is bad, FastAPI automatically rejects it with a 422 Unprocessable Entity error before our code even runs!
+If the data is bad, FastAPI automatically rejects it with a 422 Unprocessable Entity error instantly closing the physical memory buffer socket!
 
 ## Why separate Schemas and Models?
-Security! When a user requests their profile data, our database `User` model contains their secret, hashed password. By forcing the database model to serialize through our `UserResponse` schema (which explicitly excludes the password field), we guarantee we will never accidentally leak sensitive data back to the frontend!
+Security! When a user requests their profile data, our database `User` model contains their secret, hashed password. By forcing the database model to serialize through our `UserResponse` schema (which explicitly restricts output properties), we guarantee we will never leak sensitive attributes back to the client!
 
-*   `book.py`: Schemas for creating/updating books and safely returning book data (including nested review schemas).
-*   `interaction.py`: Schemas for carts, sales, wishlists, and publisher requisitions.
-*   `user.py`: Schemas for user registration payloads, secure profile updates, and safe user responses.
-*   `token.py`: Schemas specifically for the JWT authentication flow payloads.
+*   `book.py`: Schemas for creating/updating books safely, utilizing specific max string boundary limits for external ISBN API dependencies.
+*   `interaction.py`: Schemas for complex transactional carts, sales tracking, and publisher requisitions.
+*   `user.py`: Schemas for user registration payloads requiring proper First/Last names, and safe user responses.
+*   `token.py`: Schemas tightly coupled with JWT payload definitions.
