@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 @router.post("/register", response_model = UserResponse)
-async def user_register(user: UserCreate,db: Session = Depends(get_db)):
+def user_register(user: UserCreate,db: Session = Depends(get_db)):
     # 1. Check if user already exists
     db_user = db.query(User).filter(User.email == user.email).first()
 
@@ -45,7 +45,7 @@ async def user_register(user: UserCreate,db: Session = Depends(get_db)):
     return new_user
 
 @router.post("/login")
-async def user_login(
+def user_login(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(), 
     db: Session = Depends(get_db)
@@ -77,7 +77,7 @@ async def user_login(
     return {"access_token": access_token, "token_type": "bearer", "message": "Successfully logged in"}
 
 @router.post("/logout")
-async def user_logout(response: Response):
+def user_logout(response: Response):
     response.delete_cookie("access_token")
     return {"message": "Successfully logged out"}
 

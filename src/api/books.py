@@ -24,7 +24,7 @@ limiter = Limiter(key_func=get_remote_address)
 @router.get("/", response_model = List[BookResponse])
 @limiter.limit("60/minute")
 @cache(expire=60)
-async def get_all_books(
+def get_all_books(
     request: Request,
     db: Session = Depends(get_db),
     skip: int = Query(0, ge=0),
@@ -76,7 +76,7 @@ async def get_all_books(
 
 @router.get("/best-deals", response_model=List[BookResponse])
 @cache(expire = 3600)
-async def get_best_deals(limit: int = 5,db: Session = Depends(get_db)):
+def get_best_deals(limit: int = 5,db: Session = Depends(get_db)):
     """Fetch the top books currently on sale with the highest discounts."""
 
     deals = db.query(Book)\
@@ -89,7 +89,7 @@ async def get_best_deals(limit: int = 5,db: Session = Depends(get_db)):
 
 
 @router.get("/{book_id}", response_model = BookDetailResponse)
-async def get_single_book(
+def get_single_book(
     book_id: int,
     db: Session = Depends(get_db),
     #Here is the magic injection
@@ -109,7 +109,7 @@ async def get_single_book(
     return db_book
 
 @router.post("/",response_model = BookResponse, status_code = status.HTTP_201_CREATED)
-async def create_book(book: BookCreate, db: Session = Depends(get_db), current_admin: User = Depends(get_current_admin_user)):
+def create_book(book: BookCreate, db: Session = Depends(get_db), current_admin: User = Depends(get_current_admin_user)):
     """"Only an Admin can add a new book to the inventory"""
 
     db_book = db.query(Book).filter(Book.isbn == book.isbn).first()
@@ -124,7 +124,7 @@ async def create_book(book: BookCreate, db: Session = Depends(get_db), current_a
 
 @router.patch("/{book_id}", response_model = BookResponse, status_code = status.HTTP_200_OK)
 @router.put("/{book_id}", response_model = BookResponse, status_code = status.HTTP_200_OK)
-async def update_book(
+def update_book(
     book_id: int,
     book_update: BookUpdate,
     db: Session = Depends(get_db),
@@ -135,6 +135,10 @@ async def update_book(
     if not db_book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
     
+    if db_book.admin_id != current_admin.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to modify another vendor's inventory.")
+    
+
     update_data = book_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_book, key, value)
@@ -144,7 +148,7 @@ async def update_book(
     return db_book
 
 @router.delete("/{book_id}", status_code = status.HTTP_204_NO_CONTENT)
-async def delete_book(
+def delete_book(
     book_id: int,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
@@ -155,6 +159,9 @@ async def delete_book(
     if not db_book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
     
+    if db_book.admin_id != current_admin.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to modify another vendor's inventory.")
+    
     db_book.is_active = False
     db_book.stock_quantity = 0
     db.commit()
@@ -162,7 +169,7 @@ async def delete_book(
 
 
 @router.post("/{book_id}/cover", response_model = BookResponse)
-async def upload_book_cover(
+def upload_book_cover(
     book_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -173,6 +180,9 @@ async def upload_book_cover(
     if not db_book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
 
+    if db_book.admin_id != current_admin.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not authorized to modify another vendor's inventory.")
+    
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "Invalid file type")
     

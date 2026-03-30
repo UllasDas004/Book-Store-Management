@@ -11,11 +11,11 @@ router = APIRouter(
 )
 
 @router.get("/me", response_model = UserResponse)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 @router.put("/me", response_model = UserResponse)
-async def update_user_me(user_update: UserUpdate, current_user: User = Depends(get_current_active_user),db: Session = Depends(get_db)):
+def update_user_me(user_update: UserUpdate, current_user: User = Depends(get_current_active_user),db: Session = Depends(get_db)):
     update_data = user_update.model_dump(exclude_unset = True)
 
     for key, value in update_data.items():
@@ -27,7 +27,7 @@ async def update_user_me(user_update: UserUpdate, current_user: User = Depends(g
     return current_user
 
 @router.put("/me/password", status_code=status.HTTP_200_OK)
-async def update_password(
+def update_password(
     password_data: UserPasswordUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -41,7 +41,7 @@ async def update_password(
     return {"detail": "Password updated successfully"}
 
 @router.delete("/{user_id}", status_code = status.HTTP_204_NO_CONTENT)
-async def delete_user(
+def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)

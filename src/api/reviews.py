@@ -16,7 +16,7 @@ router = APIRouter(
     response_model = ReviewResponse,
     status_code = status.HTTP_201_CREATED
 )
-async def add_review(
+def add_review(
     book_id: int,
     review: ReviewCreate,
     db: Session = Depends(get_db),

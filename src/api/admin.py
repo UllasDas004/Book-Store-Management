@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 @router.get("/dashboard")
-async def get_dashboard_stats(
+def get_dashboard_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):

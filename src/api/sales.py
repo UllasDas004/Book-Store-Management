@@ -18,7 +18,7 @@ router = APIRouter(
 )
 
 @router.post("/", response_model = CartItemResponse, status_code = status.HTTP_201_CREATED)
-async def add_to_cart(cart_item: CartItemCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+def add_to_cart(cart_item: CartItemCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     """Add a book to the cart"""
 
     book = db.query(Book).filter(Book.id == cart_item.book_id).first()
@@ -51,7 +51,7 @@ async def add_to_cart(cart_item: CartItemCreate, db: Session = Depends(get_db), 
     return new_cart_item
 
 @router.get("/cart", response_model = CartResponse)
-async def get_cart_items(
+def get_cart_items(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -62,7 +62,7 @@ async def get_cart_items(
 
 
 @router.delete("/cart/{item_id}", status_code = status.HTTP_204_NO_CONTENT)
-async def remove_from_cart(
+def remove_from_cart(
     item_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -76,7 +76,7 @@ async def remove_from_cart(
 
 
 @router.post("/sale", response_model = List[SaleResponse], status_code = status.HTTP_201_CREATED)
-async def checkout_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+def checkout_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
     """Purchase all items in the cart and reduce the stocks"""
     cart_items = db.query(CartItem).filter(CartItem.user_id == current_user.id).all()
     if not cart_items:
@@ -113,7 +113,7 @@ async def checkout_cart(db: Session = Depends(get_db), current_user: User = Depe
     return sales_records
 
 @router.get("/history", response_model = List[SaleResponse])
-async def get_sale_history(
+def get_sale_history(
     db: Session = Depends(get_db), 
     current_user: User = Depends(get_current_active_user),
     skip: int = Query(0, ge=0),
@@ -127,7 +127,7 @@ class CartQuantityUpdate(BaseModel):
     quantity: int
 
 @router.put("/cart/{item_id}", response_model = CartItemResponse)
-async def update_cart_quantity(
+def update_cart_quantity(
     item_id: int,
     update_data: CartQuantityUpdate,
     db: Session = Depends(get_db),
@@ -162,7 +162,7 @@ class SalesStatusUpdate(BaseModel):
     status: str
 
 @router.put("/{sale_id}/status", response_model = SaleResponse)
-async def update_sales_status(
+def update_sales_status(
     sale_id: int,
     status_update: SalesStatusUpdate,
     db: Session = Depends(get_db),
@@ -171,6 +171,10 @@ async def update_sales_status(
     sale = db.query(Sale).filter(Sale.id == sale_id).first()
     if not sale:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Sale not found")
+    
+    book  = db.query(Book).filter(Book.id == sale.book_id).first()
+    if book.admin_id != current_admin.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot update the shipping status of another vendor's order.")
     
     valid_status = ["Pending", "Shipped", "Delivered", "Cancelled"]
     if status_update.status not in valid_status:
@@ -184,7 +188,7 @@ async def update_sales_status(
 
 @router.get("/top-vendors", response_model=List[TopVendorResponse])
 @cache(expire = 3600)
-async def get_top_vendors(limit: int = Query(5, ge=1, le=100), db: Session = Depends(get_db)):
+def get_top_vendors(limit: int = Query(5, ge=1, le=100), db: Session = Depends(get_db)):
     """Get the top vendors based on the total number of books sold."""
 
     top_vendors = db.query(

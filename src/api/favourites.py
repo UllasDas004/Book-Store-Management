@@ -14,7 +14,7 @@ router = APIRouter(
 )
 
 @router.post("/", response_model=FavouriteResponse, status_code=status.HTTP_201_CREATED)
-async def create_favourite(
+def create_favourite(
     favourite: FavouriteCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -51,7 +51,7 @@ async def create_favourite(
 
 
 @router.get("/", response_model = List[FavouriteResponse])
-async def get_favourites(
+def get_favourites(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -60,7 +60,7 @@ async def get_favourites(
 
 
 @router.delete("/{favourite_id}", status_code = status.HTTP_204_NO_CONTENT)
-async def remove_favourite(
+def remove_favourite(
     favourite_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)

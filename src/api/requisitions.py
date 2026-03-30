@@ -17,7 +17,7 @@ router = APIRouter(
 )
 
 @router.post("/", response_model = RequisitionResponse, status_code = status.HTTP_201_CREATED)
-async def create_requisitions(
+def create_requisitions(
     req_data: RequisitionCreate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
@@ -28,6 +28,13 @@ async def create_requisitions(
             status_code = status.HTTP_404_NOT_FOUND,
             detail = "Book not found"
         )
+
+    if book.admin_id != current_admin.id:
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN,
+            detail = "You can only restock your own inventory."
+        )
+    
     if req_data.quantity <= 0:
         raise HTTPException(
             status_code = status.HTTP_400_BAD_REQUEST,
@@ -54,7 +61,7 @@ def process_auto_requisitions(admin_id: int):
         LOW_STOCK_THRESHOLD = 10
         three_months_ago = datetime.now(timezone.utc) - timedelta(days=90)
         
-        low_stock_books = db.query(Book).filter(Book.stock_quantity < LOW_STOCK_THRESHOLD).all()
+        low_stock_books = db.query(Book).filter(Book.stock_quantity < LOW_STOCK_THRESHOLD, Book.admin_id == admin_id).all()
         generated_requisitions = []
         
         for book in low_stock_books:
@@ -92,7 +99,7 @@ def process_auto_requisitions(admin_id: int):
 
 
 @router.post("/auto", status_code=status.HTTP_202_ACCEPTED)
-async def auto_generate_requisitions(
+def auto_generate_requisitions(
     background_tasks: BackgroundTasks,
     current_admin: User = Depends(get_current_admin_user)
 ):
@@ -105,17 +112,17 @@ async def auto_generate_requisitions(
 
 
 @router.get("/", response_model = List[RequisitionResponse])
-async def get_all_requisitions(
+def get_all_requisitions(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100)
 ):
-    return db.query(Requisition).offset(skip).limit(limit).all()
+    return db.query(Requisition).filter(Requisition.user_id == current_admin.id).offset(skip).limit(limit).all()
 
 
 @router.put("/{req_id}/receive", response_model = RequisitionResponse)
-async def receive_requisition(
+def receive_requisition(
     req_id: int,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin_user)
@@ -126,6 +133,10 @@ async def receive_requisition(
             status_code = status.HTTP_404_NOT_FOUND,
             detail = "Requisition not found"
         )
+
+    if req.user_id != current_admin.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot receive deliveries for another vendor's requisition.")
+
     if req.status == "completed":
         raise HTTPException(
             status_code = status.HTTP_400_BAD_REQUEST,
