@@ -9,7 +9,7 @@ from src.db.database import get_db
 from src.models.book import Book
 from src.models.user import User
 from src.schemas.book import BookCreate, BookResponse, BookUpdate, BookDetailResponse
-from src.api.deps import get_current_admin_user
+from src.api.deps import get_current_admin_user, get_current_user_optional
 
 
 router = APIRouter(
@@ -89,11 +89,21 @@ async def get_best_deals(limit: int = 5,db: Session = Depends(get_db)):
 
 
 @router.get("/{book_id}", response_model = BookDetailResponse)
-async def get_single_book(book_id: int,db: Session = Depends(get_db)):
+async def get_single_book(
+    book_id: int,
+    db: Session = Depends(get_db),
+    #Here is the magic injection
+    current_user: Optional[User] = Depends(get_current_user_optional)
+    ):
     db_book = db.query(Book).options(joinedload(Book.reviews)).filter(Book.id == book_id).first()
     if not db_book:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "Book not found")
     
+    if not db_book.is_active:
+        # if the user is a Guest (None), OR they are a regular Customer: Block them.
+        if current_user is None or current_user.role != "admin":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+
     # Sort reviews by ID descending (newest first) and limit to top 10
     db_book.reviews = sorted(db_book.reviews, key=lambda r: r.id, reverse=True)[:10]
     return db_book

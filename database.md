@@ -117,37 +117,37 @@ erDiagram
 
 A critical part of database design is justifying *why* the schema was structured this way. Below are the exhaustive design decisions for every entity in the database.
 
-### 1. [users](file:///d:/coding/web/book_store_management/backend/src/api/users.py#13-16) Table
-*   **Single Table Inheritance vs Multi-Table**: Instead of creating separate `customers` and `admins` tables, we used a single [users](file:///d:/coding/web/book_store_management/backend/src/api/users.py#13-16) table with a `role` column (`VARCHAR`). This is known as Single Table Inheritance. It is drastically more efficient because customers and admins share 95% of the same attributes (name, email, password, address). Querying across separate tables for a basic login would require slow `UNION` operations.
-*   **Surrogate Keys ([id](file:///d:/coding/web/book_store_management/frontend/src/context/AuthContext.jsx#6-56)) vs Natural Keys (`email`)**: We chose an auto-incrementing integer [id](file:///d:/coding/web/book_store_management/frontend/src/context/AuthContext.jsx#6-56) as the Primary Key instead of the user's `email`. If a user changes their email address in the future, using an email as a primary key would violently break all foreign key constraints across the [sales](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183), `reviews`, and [cart_items](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#53-62) tables. Surrogate integer keys are immutable, solving this update anomaly entirely.
+### 1. `users` Table
+*   **Single Table Inheritance vs Multi-Table**: Instead of creating separate `customers` and `admins` tables, we used a single `users` table with a `role` column (`VARCHAR`). This is known as Single Table Inheritance. It is drastically more efficient because customers and admins share 95% of the same attributes (name, email, password, address). Querying across separate tables for a basic login would require slow `UNION` operations.
+*   **Surrogate Keys (`id`) vs Natural Keys (`email`)**: We chose an auto-incrementing integer `id` as the Primary Key instead of the user's `email`. If a user changes their email address in the future, using an email as a primary key would violently break all foreign key constraints across the `sales`, `reviews`, and `cart_items` tables. Surrogate integer keys are immutable, solving this update anomaly entirely.
 *   **Security (hashed_password)**: We strictly store a 60-character `bcrypt` hash rather than plaintext. From a DBMS perspective, this column is sized specifically to accommodate the fixed length of a bcrypt output, ensuring space efficiency while adhering to zero-trust security architecture.
 *   **Soft Deletes (`is_active`)**: We included an `is_active` boolean. In an E-Commerce system, physically `DELETE`ing a user destroys their historical sales records due to `CASCADE` constraints. Flagging them as `is_active = FALSE` preserves financial audit history while locking them out perfectly.
 
-### 2. [books](file:///d:/coding/web/book_store_management/backend/src/api/books.py#24-75) Table
+### 2. `books` Table
 *   **ISBN as `VARCHAR` instead of `INTEGER`**: ISBN numbers can be 10 or 13 digits long, and some older versions contain hyphens or trailing 'X' characters (e.g., `0-13-110362-8`). If we mapped this to an `INTEGER` data type, it would crash on the character 'X', crash on hyphens, or overflow standard 32-bit integer limits. A `VARCHAR` allows flexible storage and regex-based searching.
 *   **The Array Denormalization (`category`)**: A book can belong to multiple categories ("Sci-Fi", "Action"). In strict 1st Normal Form (1NF), an attribute must be atomic. We *should* have created a `categories` table and a `book_categories` associative table. However, we aggressively denormalized this into a PostgreSQL `ARRAY(String)` column. **Why?** Read performance. Users constantly browse by category. Joining 3 tables for every page load causes immense disk I/O overhead. PostgreSQL arrays allow us to fetch the book and all its genres in a single, lightning-fast `O(1)` row read. The trade-off in mathematical purity is entirely worth the 300% speed increase.
 *   **Price as `FLOAT`**: Stored as a floating-point number. While `DECIMAL/NUMERIC` is sometimes preferred for precise financial calculations preventing binary floating-point rounding errors, `FLOAT` is perfectly sufficient for a general practical lab and executes arithmetic operations faster at the CPU level.
 
-### 3. [sales](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183) and `sale_items` Tables (The Associative Entity)
+### 3. `sales` and `sale_items` Tables (The Associative Entity)
 *   **Why split into two tables?**: This is the textbook definition of resolving a **Many-to-Many** relationship into the Third Normal Form (3NF). One sale (order) contains many books. One book belongs to many sales. 
-*   **Historical Preservation (`unit_price` in `sale_items`)**: Notice that `sale_items` has its own `unit_price` column, even though [books](file:///d:/coding/web/book_store_management/backend/src/api/books.py#24-75) already has a `price` column! **This is not redundant data; it is a critical temporal design requirement.** If a customer buys a book for $15 today, and the admin increases the price to $20 tomorrow, we must not let our historical sales reports suddenly recalculate past invoices at $20. By copying the instantaneous price into `sale_items.unit_price` at the moment of checkout, we freeze history forever, preventing a devastating update anomaly.
+*   **Historical Preservation (`unit_price` in `sale_items`)**: Notice that `sale_items` has its own `unit_price` column, even though `books` already has a `price` column! **This is not redundant data; it is a critical temporal design requirement.** If a customer buys a book for $15 today, and the admin increases the price to $20 tomorrow, we must not let our historical sales reports suddenly recalculate past invoices at $20. By copying the instantaneous price into `sale_items.unit_price` at the moment of checkout, we freeze history forever, preventing a devastating update anomaly.
 
-### 4. [cart_items](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#53-62) and `favourites` Tables
-*   **Decoupling the Cart**: The shopping cart is separated from [sales](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183) entirely. The cart is volatile and constantly changing (users add and remove items without buying). If we tried to store ongoing carts in the [sales](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183) table with a status of "pending", our main financial table would be polluted with thousands of abandoned carts, ruining data analytics and slowing down report queries.
+### 4. `cart_items` and `favourites` Tables
+*   **Decoupling the Cart**: The shopping cart is separated from `sales` entirely. The cart is volatile and constantly changing (users add and remove items without buying). If we tried to store ongoing carts in the `sales` table with a status of "pending", our main financial table would be polluted with thousands of abandoned carts, ruining data analytics and slowing down report queries.
 *   **Composite Distinct Constraints**: In the application logic, we enforce that a specific `user_id` and `book_id` combination must be distinct in the `favourites` table. A user cannot favorite the exact same book twice. 
 
-### 5. [requisitions](file:///d:/coding/web/book_store_management/backend/src/api/requisitions.py#19-49) Table
-*   **Automated Fulfillment Mapping**: This table tracks books that have fallen below the stock threshold. It strictly references the `admin_id` of the vendor responsible for fulfilling it. It utilizes a [status](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183) string (Pending, Ordered, Received) to track state changes over time without requiring complex historical logging tables.
+### 5. `requisitions` Table
+*   **Automated Fulfillment Mapping**: This table tracks books that have fallen below the stock threshold. It strictly references the `admin_id` of the vendor responsible for fulfilling it. It utilizes a `status` string (Pending, Ordered, Received) to track state changes over time without requiring complex historical logging tables.
 
 ### 6. `reviews` Table
-*   **Integrity via Cascades**: The `reviews` table mandates both a `user_id` and a `book_id`. In our SQLAlchemy schema, we implemented `CASCADE DELETE`. If an Admin completely deletes a [book](file:///d:/coding/web/book_store_management/backend/src/api/books.py#136-152) from inventory, all `reviews` associated with that book are instantly purged by the database engine at the C-level, ensuring absolute referential integrity and saving us from having to write application-level cleanup logic.
+*   **Integrity via Cascades**: The `reviews` table mandates both a `user_id` and a `book_id`. In our SQLAlchemy schema, we implemented `CASCADE DELETE`. If an Admin completely deletes a `book` from inventory, all `reviews` associated with that book are instantly purged by the database engine at the C-level, ensuring absolute referential integrity and saving us from having to write application-level cleanup logic.
 
 ---
 
 ## 4. Schema Specifications & Constraints
 
 ### A. Primary Keys (PK) & Foreign Keys (FK)
-Every single table implements a surrogate [id](file:///d:/coding/web/book_store_management/frontend/src/context/AuthContext.jsx#6-56) (Auto-incrementing Integer) as its Primary Key. 
+Every single table implements a surrogate `id` (Auto-incrementing Integer) as its Primary Key. 
 
 *   `books.admin_id` -> references `users.id`
 *   `cart_items.user_id` -> references `users.id`
@@ -160,7 +160,7 @@ Every single table implements a surrogate [id](file:///d:/coding/web/book_store_
 
 ### B. Indexing Strategy (B-Tree Indexes)
 **What we Indexed & Why:**
-*   **Primary Keys ([id](file:///d:/coding/web/book_store_management/frontend/src/context/AuthContext.jsx#6-56))**: PostgreSQL automatically indexes these using B-Trees. Essential for `O(log n)` lookups during relational joins.
+*   **Primary Keys (`id`)**: PostgreSQL automatically indexes these using B-Trees. Essential for `O(log n)` lookups during relational joins.
 *   **Foreign Keys (`user_id`, `book_id`)**: Indexed heavily because almost all relationship queries (e.g., "Find all cart items WHERE user_id = 5") scan these columns. Without B-Tree indexes here, the DB would perform a sequential scan `O(n)` across millions of rows, crippling performance.
 *   `users.email` and `users.username`: Indexed and marked `UNIQUE`. This forces the database to mathematically reject duplicate accounts, preventing race conditions from the frontend. It also rapidly accelerates the authentication querying block.
 *   `books.isbn`: Indexed to allow ultra-fast duplicate checks during inventory entry.
@@ -176,40 +176,18 @@ Every single table implements a surrogate [id](file:///d:/coding/web/book_store_
 The database is heavily normalized up to the **Third Normal Form (3NF)**.
 
 ### Functional Dependencies (FDs) Analysis
-In the [users](file:///d:/coding/web/book_store_management/backend/src/api/users.py#13-16) table:
+In the `users` table:
 *   `{id} -> {first_name, last_name, username, email, hashed_password, role}`
 *   `{email} -> {id, username, first_name, ...}`
-**Proof of 3NF**: Every non-prime attribute is fully functionally dependent on the Primary Key ([id](file:///d:/coding/web/book_store_management/frontend/src/context/AuthContext.jsx#6-56)) and the Candidate Key (`email`). No non-prime attribute determines another non-prime attribute.
+**Proof of 3NF**: Every non-prime attribute is fully functionally dependent on the Primary Key (`id`) and the Candidate Key (`email`). No non-prime attribute determines another non-prime attribute.
 
-In the [sales](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183) table:
+In the `sales` table:
 *   `{id} -> {user_id, total_amount, shipping_address, order_status, created_at}`
-**Proof of 3NF**: `total_amount` is determined by the Sale [id](file:///d:/coding/web/book_store_management/frontend/src/context/AuthContext.jsx#6-56), not by the `user_id`. There are no transitive dependencies, keeping it mathematically pure.
+**Proof of 3NF**: `total_amount` is determined by the Sale `id`, not by the `user_id`. There are no transitive dependencies, keeping it mathematically pure.
 
 ### The 1NF "Violation" (Deliberate Array Denormalization)
 In strict relational theory, **First Normal Form (1NF)** states that every intersection of a row and column must contain an *atomic* (indivisible) value.
 
-As noted in the design decisions, our `category` column on [books](file:///d:/coding/web/book_store_management/backend/src/api/books.py#24-75) is a PostgreSQL Array (`['Fiction', 'Animation']`). This strictly violates 1NF. However, you should aggressively defend this in a Viva by explaining that post-relational NoSQL and advanced RDBMS engines prioritize query optimization over dogmatic normal forms when dealing with bounded datasets.
+As noted in the design decisions, our `category` column on `books` is a PostgreSQL Array (`['Fiction', 'Animation']`). This strictly violates 1NF. However, you should aggressively defend this in a Viva by explaining that post-relational NoSQL and advanced RDBMS engines prioritize query optimization over dogmatic normal forms when dealing with bounded datasets.
 
----
 
-## 6. Viva Voce Preparation Guide (Q&A)
-
-Here are the most critical questions an examiner might ask during your DBMS lab evaluation, along with advanced, expert-level answers.
-
-### Q1: Why did you choose PostgreSQL over MySQL or SQLite?
-**Answer:** "SQLite is file-based and locks the entire database on writes, meaning it cannot handle concurrent users in an e-commerce platform. We chose PostgreSQL over MySQL because PostgreSQL is a powerful Object-Relational Database System that strictly enforces data integrity, allows advanced primitive types (like Arrays, which we utilized to denormalize book categories), and complies strongly with ACID properties under concurrent API requests."
-
-### Q2: Is your database Normalized? Explain your use of the Category Array.
-**Answer:** "Yes, the core architecture enforces strict 3NF to prevent insertion, deletion, and update anomalies. However, we made a deliberate, documented architectural decision to denormalize the `category` column. In a strict relational model, arrays violate 1NF. But by leveraging PostgreSQL's modern capability to store arrays natively, we bypass an incredibly expensive three-way `JOIN` operation across a junction table. Because categories are rarely updated but constantly queried on every catalog load, this denormalization vastly improves our system's Read-latency."
-
-### Q3: Explain why the `sale_items` table exists. Why not put books directly in [sales](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183)?
-**Answer:** "The `sale_items` table resolves a Many-to-Many relationship between orders and inventory. If we stored books directly inside the [sales](file:///d:/coding/web/book_store_management/backend/src/api/sales.py#164-183) table, we would either violate 1NF by storing lists of objects, or violate 2NF by duplicating the shipping address and order totals for every book purchased! The `sale_items` table serves as the associative junction entity, maintaining pure 3NF."
-
-### Q4: Why is there a `unit_price` in `sale_items` if the [books](file:///d:/coding/web/book_store_management/backend/src/api/books.py#24-75) table already has a price?
-**Answer:** "This prevents historical data corruption! If a customer buys a book for ₹500 today, and the admin increases the store price to ₹700 next month, we cannot let past invoices dynamically recalculate to ₹700. By capturing the instantaneous price at checkout and hardcoding it into `sale_items.unit_price`, we freeze the financial history, ensuring absolute data integrity."
-
-### Q5: Why did we Index the `isbn` and `email` columns?
-**Answer:** "Indexes employ B-Trees under the hood to change a linear full-table scan, which runs in `O(n)` time, into a logarithmic binary search running in `O(log n)` time. We indexed `email` and `username` because the core Authentication logic relies on these lookups constantly. Furthermore, applying an index allows us to enforce a `UNIQUE` constraint, guaranteeing that no two customers can ever create accounts with identical emails."
-
-### Q6: What happens to a user's Cart or Reviews if you delete their account?
-**Answer:** "We configured our SQLAlchemy mapping to issue an `ON DELETE CASCADE` constraint on the physical database layer. If the parent row (a User) is deleted, the database engine automatically seeks out and prunes all child rows (their unpurchased cart items and reviews) instantly. This preserves strict referential integrity and entirely prevents 'orphaned' or 'dangling' foreign keys from crashing the system down the line."

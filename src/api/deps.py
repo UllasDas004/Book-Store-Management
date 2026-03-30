@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from src.core.config import settings
 from src.db.database import get_db
 from src.models.user import User
+from typing import Optional
 
 # We set auto_error=False so it doesn't immediately fail if the Authorization header is missing.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
@@ -60,3 +61,23 @@ async def get_current_admin_user(current_user: User = Depends(get_current_active
     if current_user.role != "admin":
         raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail = "The user doesn't have enough privileges")
     return current_user
+
+async def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
+    """
+    Attempts to quietly extract the user from the cookie without crashing
+    returns the user model if they are logged in.
+    returns none if they are a guest.
+    """
+
+    try:
+        #step 1: extract the secret token from the browser's cookie jar
+        token = get_token_from_header_or_cookie(request)
+
+        #step 2: decode the JWT payload and fetch the User from postgres
+        return await get_current_user(token, db)
+    
+    except HTTPException:
+        #The user either doesn't have a cookie, or their JWT expired!
+        # do not throw a 401 error, Just smoothly return none as a guest
+
+        return None

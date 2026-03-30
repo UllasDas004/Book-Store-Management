@@ -42,3 +42,11 @@ The public-facing components of this API are fortified with `SlowAPI`. We strict
 
 ## 🚀 In-Memory Caching
 To achieve absolute maximum speed, heavy public endpoints are decorated with `@cache(expire=60)`. The server executes the complex SQL query once, stores the final stringified JSON output in server RAM, and serves identical traffic at a sub-millisecond response time!
+
+## 🍪 Stateless Auto-Login (HttpOnly Cookies)
+The API entirely bypasses standard JavaScript `localStorage` vulnerabilities by injecting the JSON Web Token (JWT) directly into a Secure, `HttpOnly` browser cookie during the `POST /auth/login` handshake. 
+Because `HttpOnly` cookies are automatically attached by the browser to every subsequent request, the frontend React application simply fires a request to `GET /users/me` on initial page load to automatically "remember" and log in the user without prompting for credentials.
+
+## 🕵️ Optional Dependencies (Silent RBAC)
+For public endpoints that show dynamic content (like `GET /books/{id}`), the API implements advanced Optional Role-Based Access Control (RBAC). 
+Using a custom FastAPI dependency (`get_current_user_optional` in `deps.py`), the endpoint quietly checks the cookie jar. If the user is unauthenticated, the system drops them into a Guest state without throwing aggressive `401 Unauthorized` errors. However, if the cookie reveals the user is an Admin, the very same endpoint dynamically unlocks restricted backend data (like viewing soft-deleted inventory).
