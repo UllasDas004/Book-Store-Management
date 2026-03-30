@@ -79,6 +79,9 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
         if token and token.startswith("Bearer "):
             token = token.split(" ")[1]
 
+    if not token:
+        return None
+
     try:
         return await get_current_user(token, db)
     
