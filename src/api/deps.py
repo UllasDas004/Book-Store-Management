@@ -68,12 +68,18 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
     returns the user model if they are logged in.
     returns none if they are a guest.
     """
+    #1. Manually check for an Authorization header
+    token = request.headers.get("Authorization")
+    if token and token.startswith("Bearer "):
+        token = token.split(" ")[1]
+    else:
+        #2. If no header, manually check the bearer's HTTPOnly cookie jar
+        token = request.cookies.get("access_token")
+
+        if token and token.startswith("Bearer "):
+            token = token.split(" ")[1]
 
     try:
-        #step 1: extract the secret token from the browser's cookie jar
-        token = get_token_from_header_or_cookie(request)
-
-        #step 2: decode the JWT payload and fetch the User from postgres
         return await get_current_user(token, db)
     
     except HTTPException:
