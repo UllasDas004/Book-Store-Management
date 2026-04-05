@@ -29,12 +29,13 @@ def get_dashboard_stats(
 
     # Advanced Analytics: Top 5 Best Selling Books
     top_books_data = db.query(
-        Book.title,
+        Book.id,
         func.sum(Sale.quantity).label("total_sold")
     ).join(Sale, Book.id == Sale.book_id).group_by(Book.id).order_by(desc("total_sold")).limit(5).all()
 
     # Advanced Analytics: Top 5 Customers by Revenue
     top_customers_data = db.query(
+        User.id,
         User.username,
         User.email,
         func.sum(Sale.total_price).label("total_spent")
@@ -49,10 +50,10 @@ def get_dashboard_stats(
         },
         "advanced_analytics": {
             "top_selling_books": [
-                {"title": book.title, "total_sold": book.total_sold} for book in top_books_data
+                {"id": book.id, "total_sold": book.total_sold} for book in top_books_data
             ],
             "top_customers": [
-                {"username": customer.username, "email": customer.email, "total_spent": customer.total_spent} for customer in top_customers_data
+                {"id": customer.id, "username": customer.username, "email": customer.email, "total_spent": customer.total_spent} for customer in top_customers_data
             ]
         },
         "alerts": {
