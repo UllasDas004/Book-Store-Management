@@ -14,15 +14,21 @@ BOOKS_PER_CATEGORY = 10
 
 def fetch_books_from_google(query, max_results):
     print(f"Fetching {max_results} books for query: '{query}'...")
-    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults={max_results}"
+    api_key = "AIzaSyCfS7nBQR8tawT14j96u2WB1OwODEY1IbY"
+    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults={max_results}&key={api_key}"
     response = requests.get(url)
-    return response.json().get('items',[]) if response.status_code == 200 else []
+    if response.status_code != 200:
+        print(f"❌ Google API Rejected Request. Status: {response.status_code}")
+        print(response.json())
+        return []
+    return response.json().get('items',[])
 
 def ensure_vendors_exists(db: Session):
     vendor_data = [
-        {"first": "Ullas", "last": "Das", "username": "ullasdas", "email": "ullasdas123@gmail.com"},
-        {"first": "Chittajit", "last": "Nath", "username": "chittajitnath", "email": "chitta@gmail.com"},
-        {"first": "Ishita", "last": "Roy", "username": "ishitaroy", "email": "ishita123@gmail.com"}
+        {"first": "Ullas", "last": "Das", "username": "ullasdas", "email": "ullasdas123@gmail.com", "role": "admin", "address": "123 Admin Lane, Bankura", "phone_number": "8972296969"},
+        {"first": "Chittajit", "last": "Nath", "username": "chittajitnath", "email": "chitta@gmail.com", "role": "admin", "address": "456 Admin Ave, Kolkata", "phone_number": "9123456780"},
+        {"first": "Ishita", "last": "Roy", "username": "ishitaroy", "email": "ishita123@gmail.com", "role": "admin", "address": "789 Admin Blvd, Durgapur", "phone_number": "9081726354"},
+        {"first": "Test", "last": "Customer", "username": "testcustomer1", "email": "testcustomer@example.com", "role": "customer", "address": "42 Customer Street, City", "phone_number": "1234567890"}
     ]
 
     vendor_ids = []
@@ -30,30 +36,36 @@ def ensure_vendors_exists(db: Session):
     for v in vendor_data:
         existing = db.query(User).filter(User.email == v["email"]).first()
         if existing:
-            vendor_ids.append(existing.id)
-
-            if existing.role != "admin":
-                existing.role = "admin"
+            if v["role"] == "admin":
+                vendor_ids.append(existing.id)
+            if existing.role != v["role"] or not existing.address or not existing.phone_number:
+                existing.role = v["role"]
+                existing.address = v["address"]
+                existing.phone_number = v["phone_number"]
                 db.commit()
         else:
-            new_vendor = User(
+            new_user = User(
                 first_name=v["first"],
                 last_name=v["last"],
                 username=v["username"],
                 email=v["email"],
                 hashed_password=get_password_hash("password123"), # Default password
-                role="admin", # Make them an admin!
+                role=v["role"],
+                address=v["address"],
+                phone_number=v["phone_number"],
                 is_active=True
             )
-            db.add(new_vendor)
+            db.add(new_user)
             db.commit()
-            db.refresh(new_vendor)
-            vendor_ids.append(new_vendor.id)
-            print(f"Created Admin Vendor: {v['first']} {v['last']}")
+            db.refresh(new_user)
+            if v["role"] == "admin":
+                vendor_ids.append(new_user.id)
+            print(f"Created {v['role'].capitalize()}: {v['first']} {v['last']}")
 
     return vendor_ids
 
 def seed_database():
+    import time
     db = SessionLocal()
     books_added = 0
 
@@ -109,10 +121,14 @@ def seed_database():
                 books_added += 1
             
             db.commit()
+            print(f"Sleeping perfectly to bypass Google API rate-limit... (3 seconds)")
+            time.sleep(3)
             print(f"\n✅ SUCCESS: Instantly seeded {books_added} books across 3 different active Vendors!")
 
     except Exception as e:
         db.rollback()
+        import traceback
+        traceback.print_exc()
         print(f"❌ ERROR saving to database: {e}")
     finally:
         db.close()

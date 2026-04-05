@@ -13,7 +13,7 @@ router = APIRouter(
     tags = ["Favourites"]
 )
 
-@router.post("/", response_model=FavouriteResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=FavouriteResponse, status_code=status.HTTP_201_CREATED)
 def create_favourite(
     favourite: FavouriteCreate,
     db: Session = Depends(get_db),
@@ -50,7 +50,7 @@ def create_favourite(
     return new_fav
 
 
-@router.get("/", response_model = List[FavouriteResponse])
+@router.get("", response_model = List[FavouriteResponse])
 def get_favourites(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
