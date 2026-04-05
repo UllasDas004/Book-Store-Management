@@ -62,7 +62,7 @@ def get_current_admin_user(current_user: User = Depends(get_current_active_user)
         raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail = "The user doesn't have enough privileges")
     return current_user
 
-async def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
+def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
     """
     Attempts to quietly extract the user from the cookie without crashing
     returns the user model if they are logged in.
@@ -83,7 +83,7 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
         return None
 
     try:
-        return await get_current_user(token, db)
+        return get_current_user(token, db)
     
     except HTTPException:
         #The user either doesn't have a cookie, or their JWT expired!
