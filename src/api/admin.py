@@ -17,29 +17,43 @@ def get_dashboard_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    total_customers = db.query(func.count(User.id)).filter(User.role == "customer").scalar()
+    # Calculate distinct customers who purchased from this specific admin
+    total_customers = db.query(func.count(User.id.distinct()))\
+                        .join(Sale, Sale.user_id == User.id)\
+                        .join(Book, Book.id == Sale.book_id)\
+                        .filter(Book.admin_id == current_user.id)\
+                        .scalar()
 
-    total_books = db.query(func.count(Book.id)).scalar()
+    total_books = db.query(func.count(Book.id)).filter(Book.admin_id == current_user.id).scalar()
 
-    total_orders = db.query(func.count(Sale.id)).scalar()
+    total_orders = db.query(func.count(Sale.id)).join(Book).filter(Book.admin_id == current_user.id).scalar()
 
-    total_revenue = db.query(func.sum(Sale.total_price)).scalar() or 0.0
+    total_revenue = db.query(func.sum(Sale.total_price)).join(Book).filter(Book.admin_id == current_user.id).scalar() or 0.0
 
-    low_stock_books = db.query(Book).filter(Book.stock_quantity < 10).all()
+    low_stock_books = db.query(Book).filter(Book.stock_quantity < 10, Book.admin_id == current_user.id).all()
 
-    # Advanced Analytics: Top 5 Best Selling Books
+    # Advanced Analytics: Top 5 Best Selling Books for this Admin
     top_books_data = db.query(
         Book.id,
         func.sum(Sale.quantity).label("total_sold")
-    ).join(Sale, Book.id == Sale.book_id).group_by(Book.id).order_by(desc("total_sold")).limit(5).all()
+    ).join(Sale, Book.id == Sale.book_id)\
+     .filter(Book.admin_id == current_user.id)\
+     .group_by(Book.id)\
+     .order_by(desc("total_sold")).limit(5).all()
 
-    # Advanced Analytics: Top 5 Customers by Revenue
+    # Advanced Analytics: Top 5 Customers by Revenue for this Admin
     top_customers_data = db.query(
         User.id,
         User.username,
         User.email,
         func.sum(Sale.total_price).label("total_spent")
-    ).join(Sale, User.id == Sale.user_id).group_by(User.id).order_by(desc("total_spent")).limit(5).all()
+    ).select_from(User)\
+     .join(Sale, User.id == Sale.user_id)\
+     .join(Book, Sale.book_id == Book.id)\
+     .filter(Book.admin_id == current_user.id)\
+     .group_by(User.id)\
+     .order_by(desc("total_spent")).limit(5).all()
+
 
     return {
         "metrics": {

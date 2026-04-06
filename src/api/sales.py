@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi_cache.decorator import cache
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, desc
 from typing import List
 from src.db.database import get_db
@@ -197,11 +197,10 @@ def get_top_vendors(limit: int = Query(5, ge=1, le=100), db: Session = Depends(g
         func.sum(Sale.quantity).label("total_books_sold")
     )\
         .join(Book, Sale.book_id == Book.id)\
-            .join(User, Book.admin_id == User.id)\
-                .group_by(Book.admin_id, User.username)\
-                    .order_by(desc("total_books_sold"))\
-                        .limit(limit)\
-                            .all()
+        .join(User, Book.admin_id == User.id)\
+        .group_by(Book.admin_id, User.username)\
+        .order_by(desc("total_books_sold"))\
+        .limit(limit)\
+        .all()
     
-    return top_vendors
-    
+    return [{"admin_id": row.admin_id, "username": row.username, "total_books_sold": row.total_books_sold} for row in top_vendors]
